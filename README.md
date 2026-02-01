@@ -145,4 +145,4 @@ MIT — see [LICENSE](LICENSE)
 
 ---
 
-Built by [KYOTU Technology](https://kyotu.tech)
+Built by [KYOTU Technology](https://kyotutechnology.com)
