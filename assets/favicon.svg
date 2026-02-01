@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Warstwa_1"
+   data-name="Warstwa 1"
+   width="771.85394"
+   height="759.55219"
+   viewBox="0 0 771.85394 759.55219"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs9">
+    <style
+       id="style2">.cls-1{fill:url(#Gradient_bez_nazwy_42);}</style>
+    <linearGradient
+       id="Gradient_bez_nazwy_42"
+       x1="438.14444"
+       y1="425.84222"
+       x2="1125.781"
+       y2="1113.4788"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(-364.07305,-364.07305)">
+      <stop
+         offset="0"
+         stop-color="#ff9e29"
+         id="stop4" />
+      <stop
+         offset="1"
+         stop-color="#f97c00"
+         id="stop6" />
+    </linearGradient>
+  </defs>
+  <path
+     class="cls-1"
+     d="m 162.19304,687.71685 v 71.8353 H 76.42623 V 601.94916 Z M 94.26361,136.78239 v 131.59213 l 294.5548,294.59234 v 196.58529 h 85.76774 V 517.25795 Z M 0,284.13675 v 131.59213 l 232.62185,232.42947 v 111.3938 h 85.76774 v -157.0652 z m 614.25087,-220.0132 85.76778,85.80622 h 71.8353 V 64.12355 Z M 660.46005,220.32011 466.35871,26.14179 H 334.7281 L 614.7896,306.08785 H 771.85395 V 220.32011 Z M 575.26954,376.51573 198.83077,0 H 67.27618 l 462.28347,462.28347 h 242.2943 V 376.51573 Z M 545.01403,532.71229 V 759.55215 H 771.85395 V 532.71229 Z"
+     id="path11"
+     style="fill:url(#Gradient_bez_nazwy_42)" />
+</svg>

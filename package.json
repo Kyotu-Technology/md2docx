@@ -1,0 +1,33 @@
+{
+  "name": "md2docx",
+  "version": "1.0.0",
+  "description": "Professional Markdown to DOCX/PDF/HTML converter",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/dev-server.js",
+    "build": "bun run build.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "globals": "^16.3.0",
+    "prettier": "^3.8.1"
+  },
+  "keywords": [
+    "markdown",
+    "docx",
+    "pdf",
+    "converter",
+    "document"
+  ],
+  "author": "KYOTU Technology",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kyotu-technology/md2docx.git"
+  },
+  "homepage": "https://kyotu-technology.github.io/md2docx/"
+}
