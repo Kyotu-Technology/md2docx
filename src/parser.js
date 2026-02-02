@@ -57,6 +57,7 @@ export function parseBodyToElements(body) {
   let inCodeBlock = false;
   let codeBlockContent = [];
   let codeBlockLang = "";
+  let codeBlockStart = 0;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -66,15 +67,21 @@ export function parseBodyToElements(body) {
         inCodeBlock = true;
         codeBlockLang = line.slice(3).trim().toLowerCase();
         codeBlockContent = [];
+        codeBlockStart = i;
       } else {
         inCodeBlock = false;
         if (codeBlockLang === "mermaid") {
-          elements.push({ type: "mermaid", content: codeBlockContent.join("\n") });
+          elements.push({
+            type: "mermaid",
+            content: codeBlockContent.join("\n"),
+            line: codeBlockStart,
+          });
         } else {
           elements.push({
             type: "codeblock",
             content: codeBlockContent.join("\n"),
             language: codeBlockLang,
+            line: codeBlockStart,
           });
         }
       }
@@ -98,33 +105,34 @@ export function parseBodyToElements(body) {
     const h1Match = line.match(/^# (.+)$/);
 
     if (h4Match) {
-      elements.push({ type: "h4", content: h4Match[1] });
+      elements.push({ type: "h4", content: h4Match[1], line: i });
       i++;
       continue;
     }
     if (h3Match) {
-      elements.push({ type: "h3", content: h3Match[1] });
+      elements.push({ type: "h3", content: h3Match[1], line: i });
       i++;
       continue;
     }
     if (h2Match) {
-      elements.push({ type: "h2", content: h2Match[1] });
+      elements.push({ type: "h2", content: h2Match[1], line: i });
       i++;
       continue;
     }
     if (h1Match) {
-      elements.push({ type: "h1", content: h1Match[1] });
+      elements.push({ type: "h1", content: h1Match[1], line: i });
       i++;
       continue;
     }
 
     if (line.match(/^(-{3,}|\*{3,}|_{3,})$/)) {
-      elements.push({ type: "hr" });
+      elements.push({ type: "hr", line: i });
       i++;
       continue;
     }
 
     if (line.includes("|") && lines[i + 1]?.match(/^\|?[\s-:|]+\|?$/)) {
+      const startLine = i;
       const tableRows = [];
       while (i < lines.length && lines[i].includes("|")) {
         const row = lines[i]
@@ -134,42 +142,46 @@ export function parseBodyToElements(body) {
         if (!lines[i].match(/^[\s-:|]+$/)) tableRows.push(row);
         i++;
       }
-      elements.push({ type: "table", rows: tableRows });
+      elements.push({ type: "table", rows: tableRows, line: startLine });
       continue;
     }
 
     if (line.match(/^[\s]*[-*+] \[([ xX])\] /)) {
+      const startLine = i;
       const items = [];
       while (i < lines.length && lines[i].match(/^[\s]*[-*+] \[([ xX])\] /)) {
         const match = lines[i].match(/^[\s]*[-*+] \[([ xX])\] (.*)$/);
         if (match) items.push({ checked: match[1].toLowerCase() === "x", text: match[2] });
         i++;
       }
-      elements.push({ type: "checklist", items });
+      elements.push({ type: "checklist", items, line: startLine });
       continue;
     }
 
     if (line.match(/^[\s]*[-*+] /)) {
+      const startLine = i;
       const items = [];
       while (i < lines.length && lines[i].match(/^[\s]*[-*+] /)) {
         items.push(lines[i].replace(/^[\s]*[-*+] /, ""));
         i++;
       }
-      elements.push({ type: "bulletlist", items });
+      elements.push({ type: "bulletlist", items, line: startLine });
       continue;
     }
 
     if (line.match(/^[\s]*\d+\. /)) {
+      const startLine = i;
       const items = [];
       while (i < lines.length && lines[i].match(/^[\s]*\d+\. /)) {
         items.push(lines[i].replace(/^[\s]*\d+\. /, ""));
         i++;
       }
       numListCounter++;
-      elements.push({ type: "numlist", items, listId: numListCounter });
+      elements.push({ type: "numlist", items, listId: numListCounter, line: startLine });
       continue;
     }
 
+    const paraStart = i;
     let paraLines = [line];
     i++;
     while (
@@ -184,7 +196,7 @@ export function parseBodyToElements(body) {
       paraLines.push(lines[i]);
       i++;
     }
-    elements.push({ type: "paragraph", content: paraLines.join(" ") });
+    elements.push({ type: "paragraph", content: paraLines.join(" "), line: paraStart });
   }
 
   return elements;

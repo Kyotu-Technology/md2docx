@@ -139,7 +139,41 @@
     .settings-panel.open {
       max-height: 200px;
     }
-    
+
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .score-badge:hover { opacity: 0.8; }
+
+    .readability-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .readability-panel.open {
+      max-height: 600px;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.375rem 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.8rem;
+    }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { color: #6b7280; }
+    .metric-value { font-weight: 600; font-family: monospace; }
+
     .toggle-switch {
       position: relative;
       width: 36px;
@@ -219,7 +253,7 @@
             </button>
             <button data-format="pdf" class="format-option w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2">
               <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-              Download PDF (experimental)
+              Download PDF
             </button>
             <button data-format="html" class="format-option w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2">
               <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
@@ -257,9 +291,7 @@
           <div id="toggleFooter" class="toggle-switch active"></div>
           <span class="text-sm text-gray-400 group-hover:text-gray-300">Footer</span>
         </label>
-        
-        <div class="h-4 w-px bg-gray-700"></div>
-        
+
         <div class="flex items-center gap-2">
           <span class="text-sm text-gray-500">Logo:</span>
           <label class="text-xs text-gray-400 hover:text-white px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer flex items-center gap-1">
@@ -303,12 +335,18 @@
           <div class="w-2 h-2 rounded-full bg-green-500"></div>
           <span class="text-sm font-medium text-gray-700">Live Preview</span>
         </div>
-        <div id="metaInfo" class="text-xs text-gray-400 font-mono hidden">
-          <span id="metaElements">0</span> elements
+        <div class="flex items-center gap-3">
+          <span id="readabilityBadge" class="score-badge" style="display:none"></span>
+          <div id="metaInfo" class="text-xs text-gray-400 font-mono hidden">
+            <span id="metaElements">0</span> elements
+          </div>
         </div>
       </div>
-      <div 
-        id="preview" 
+      <div id="readabilityPanel" class="readability-panel bg-gray-50 border-b border-gray-200 px-4">
+        <div id="readabilityMetrics" class="py-3"></div>
+      </div>
+      <div
+        id="preview"
         class="flex-1 min-h-0 overflow-y-auto p-6 scrollbar-thin"
       >
         <div class="text-center py-12">
@@ -330,10 +368,15 @@
       <span class="text-gray-700">•</span>
       <span id="appVersion">__APP_VERSION__</span>
     </div>
-    <div class="flex items-center gap-2 text-gray-500">
-      <span class="hidden sm:inline">Press</span>
-      <kbd class="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono">Ctrl+Enter</kbd>
-      <span class="hidden sm:inline">to generate</span>
+    <div class="flex items-center gap-3 text-gray-500">
+      <div class="flex items-center gap-1">
+        <kbd class="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono text-[10px]">Ctrl+K</kbd>
+        <span class="hidden sm:inline text-[10px]">search</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <kbd class="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono text-[10px]">Ctrl+Enter</kbd>
+        <span class="hidden sm:inline text-[10px]">generate</span>
+      </div>
     </div>
   </footer>
   

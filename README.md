@@ -15,6 +15,8 @@ Browser-based Markdown to DOCX/PDF/HTML converter with live preview, syntax high
 - **YAML frontmatter** — Title, author, date, TOC customization
 - **Themes** — KYOTU branded or minimal clean style
 - **Custom logo** — Upload your own for branded documents
+- **AI semantic search** — Find sections by meaning with Ctrl+K (powered by BGE embeddings)
+- **Quality score** — Real-time readability analysis with Flesch-Kincaid metrics
 - **Auto-save** — Content persisted in localStorage
 - **Offline-capable** — Works entirely in the browser
 
@@ -110,6 +112,7 @@ md2docx/
 │   ├── html-preview.js     # AST → preview HTML
 │   ├── highlighter.js      # Code syntax highlighting
 │   ├── mermaid.js          # Diagram rendering via Kroki
+│   ├── ai/                 # AI features (search, readability)
 │   └── themes/
 │       ├── kyotu.js        # KYOTU branded theme
 │       └── minimal.js      # Clean minimal theme
@@ -124,6 +127,7 @@ md2docx/
 | PDF generation | [pdfmake](https://pdfmake.github.io/docs/) |
 | Syntax highlighting | [highlight.js](https://highlightjs.org/) |
 | Diagrams | [Kroki.io](https://kroki.io/) |
+| AI search | [@huggingface/transformers](https://huggingface.co/docs/transformers.js) (BGE-small-en) |
 | Styling | [Tailwind CSS](https://tailwindcss.com/) (Play CDN) |
 | Build | [Bun](https://bun.sh/) |
 

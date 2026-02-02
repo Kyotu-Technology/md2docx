@@ -4,6 +4,8 @@ import { generatePdfBlob } from "./pdf-renderer.js";
 import { generateHtmlBlob } from "./html-export.js";
 import { generateHTMLPreview } from "./html-preview.js";
 import { getThemeList, getTheme } from "./themes/index.js";
+import { analyzeReadability, getScoreColor, getScoreLabel } from "./ai/readability.js";
+import { openSearch, updateSearchIndex } from "./ai/search-ui.js";
 
 const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -110,6 +112,9 @@ const previewPanel = $("previewPanel");
 const logoInput = $("logoInput");
 const logoFileName = $("logoFileName");
 const resetLogo = $("resetLogo");
+const readabilityBadge = $("readabilityBadge");
+const readabilityPanel = $("readabilityPanel");
+const readabilityMetrics = $("readabilityMetrics");
 
 let customLogoDataUrl = null;
 
@@ -280,6 +285,92 @@ function hideStatus() {
   status.classList.add("hidden");
 }
 
+function updateReadabilityUI(analysis) {
+  if (!analysis || analysis.wordCount < 10) {
+    readabilityBadge.style.display = "none";
+    readabilityPanel.classList.remove("open");
+    return;
+  }
+
+  const color = getScoreColor(analysis.score);
+  const label = getScoreLabel(analysis.score);
+  readabilityBadge.style.display = "";
+  readabilityBadge.style.background = color + "20";
+  readabilityBadge.style.color = color;
+  readabilityBadge.textContent = `${analysis.score}/100`;
+  readabilityBadge.title = `Quality: ${label}`;
+
+  const issues = [];
+  if (analysis.headingIssues.length > 0) {
+    issues.push(
+      ...analysis.headingIssues.map(
+        (h) =>
+          `<span class="text-red-500 cursor-pointer" data-line="${h.line}">Heading skip: ${h.got} after ${h.expected} "${h.content}"</span>`
+      )
+    );
+  }
+  if (analysis.passiveVoice.percent > 15) {
+    issues.push(
+      `<span class="text-yellow-600">High passive voice: ${analysis.passiveVoice.percent}%</span>`
+    );
+  }
+  if (analysis.avgSentenceLength > 25) {
+    issues.push(
+      `<span class="text-yellow-600">Long sentences: avg ${analysis.avgSentenceLength} words</span>`
+    );
+  }
+
+  readabilityMetrics.innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+      <div class="metric-row flex-col items-start gap-0.5">
+        <span class="metric-label">Flesch-Kincaid Grade</span>
+        <span class="metric-value">${analysis.fleschKincaid.grade}</span>
+      </div>
+      <div class="metric-row flex-col items-start gap-0.5">
+        <span class="metric-label">Readability Score</span>
+        <span class="metric-value">${analysis.fleschKincaid.score}</span>
+      </div>
+      <div class="metric-row flex-col items-start gap-0.5">
+        <span class="metric-label">Avg Sentence Length</span>
+        <span class="metric-value">${analysis.avgSentenceLength} words</span>
+      </div>
+      <div class="metric-row flex-col items-start gap-0.5">
+        <span class="metric-label">Passive Voice</span>
+        <span class="metric-value">${analysis.passiveVoice.percent}%</span>
+      </div>
+      <div class="metric-row flex-col items-start gap-0.5">
+        <span class="metric-label">Vocabulary Richness</span>
+        <span class="metric-value">${analysis.vocabulary.richness}</span>
+      </div>
+      <div class="metric-row flex-col items-start gap-0.5">
+        <span class="metric-label">Words / Sentences</span>
+        <span class="metric-value">${analysis.wordCount} / ${analysis.sentenceCount}</span>
+      </div>
+    </div>
+    ${
+      analysis.sectionBalance.sections.length > 1
+        ? `<div class="mt-2 text-xs">
+        <span class="metric-label">Section Balance:</span>
+        <div class="flex gap-1 mt-1 items-end h-8">
+          ${analysis.sectionBalance.sections
+            .map((s) => {
+              const maxWords = Math.max(...analysis.sectionBalance.sections.map((x) => x.words));
+              const h = maxWords > 0 ? Math.max(4, (s.words / maxWords) * 32) : 4;
+              return `<div title="${s.heading}: ${s.words} words" class="bg-kyotu-orange/60 rounded-t" style="width:${100 / analysis.sectionBalance.sections.length}%;height:${h}px"></div>`;
+            })
+            .join("")}
+        </div>
+      </div>`
+        : ""
+    }
+    ${
+      issues.length > 0
+        ? `<div class="mt-2 space-y-1 text-xs">${issues.map((i) => `<div>${i}</div>`).join("")}</div>`
+        : ""
+    }
+  `;
+}
+
 function updatePreview() {
   const md = markdownInput.value;
   charCount.textContent = `${md.length} chars`;
@@ -291,6 +382,8 @@ function updatePreview() {
   if (!md.trim()) {
     preview.innerHTML = emptyStateHTML;
     metaInfo.classList.add("hidden");
+    readabilityBadge.style.display = "none";
+    readabilityPanel.classList.remove("open");
     return;
   }
 
@@ -301,6 +394,11 @@ function updatePreview() {
   preview.innerHTML = generateHTMLPreview(elements, metadata, themeId);
   metaElements.textContent = elements.length;
   metaInfo.classList.remove("hidden");
+
+  const analysis = analyzeReadability(elements);
+  updateReadabilityUI(analysis);
+
+  updateSearchIndex(elements);
 }
 
 async function generateDocument(format = "docx") {
@@ -399,6 +497,13 @@ markdownInput.addEventListener("keydown", (e) => {
   }
 });
 
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+    e.preventDefault();
+    openSearch();
+  }
+});
+
 themeSelect.addEventListener("change", () => {
   try {
     localStorage.setItem("md2docx-theme", themeSelect.value);
@@ -419,3 +524,22 @@ try {
     updatePreview();
   }
 } catch {}
+
+readabilityBadge.addEventListener("click", () => {
+  readabilityPanel.classList.toggle("open");
+});
+
+readabilityMetrics.addEventListener("click", (e) => {
+  const lineEl = e.target.closest("[data-line]");
+  if (!lineEl) return;
+  const line = parseInt(lineEl.dataset.line);
+  const lines = markdownInput.value.split("\n");
+  let charPos = 0;
+  for (let i = 0; i < line && i < lines.length; i++) {
+    charPos += lines[i].length + 1;
+  }
+  markdownInput.focus();
+  markdownInput.setSelectionRange(charPos, charPos);
+  markdownInput.scrollTop =
+    (line / lines.length) * markdownInput.scrollHeight - markdownInput.clientHeight / 3;
+});
