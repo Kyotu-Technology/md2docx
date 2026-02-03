@@ -41,33 +41,58 @@ function formatInlineHTML(text, theme) {
 
 function elementToHTML(el, theme) {
   const c = theme.colors;
+  const lineAttr = el.line !== undefined ? ` data-line="${el.line}"` : "";
+
   switch (el.type) {
     case "h1":
-      return `<h1 style="color:#${c.primary};">${escapeHtml(el.content)}</h1>`;
+      return `<h1${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h1>`;
     case "h2":
-      return `<h2 style="color:#${c.primary};">${escapeHtml(el.content)}</h2>`;
+      return `<h2${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h2>`;
     case "h3":
-      return `<h3 style="color:#${c.primary};">${escapeHtml(el.content)}</h3>`;
+      return `<h3${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h3>`;
     case "h4":
-      return `<h4 style="color:#${c.primary};">${escapeHtml(el.content)}</h4>`;
+      return `<h4${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h4>`;
     case "paragraph":
-      return `<p>${formatInlineHTML(escapeHtml(el.content), theme)}</p>`;
-    case "bulletlist":
-      return `<ul>${el.items.map((i) => `<li>${formatInlineHTML(escapeHtml(i), theme)}</li>`).join("")}</ul>`;
-    case "numlist":
-      return `<ol>${el.items.map((i) => `<li>${formatInlineHTML(escapeHtml(i), theme)}</li>`).join("")}</ol>`;
-    case "checklist":
-      return `<ul class="checklist">${el.items.map((i) => `<li><span style="color:${i.checked ? "#" + COLORS.checklistChecked : "#" + c.muted}">${i.checked ? "☑" : "☐"}</span> ${formatInlineHTML(escapeHtml(i.text), theme)}</li>`).join("")}</ul>`;
+      return `<p${lineAttr}>${formatInlineHTML(escapeHtml(el.content), theme)}</p>`;
+    case "bulletlist": {
+      let html = "<ul>";
+      el.items.forEach((item, idx) => {
+        const itemLine = el.line !== undefined ? el.line + idx : undefined;
+        const itemAttr = itemLine !== undefined ? ` data-line="${itemLine}"` : "";
+        html += `<li${itemAttr}>${formatInlineHTML(escapeHtml(item), theme)}</li>`;
+      });
+      return html + "</ul>";
+    }
+    case "numlist": {
+      let html = "<ol>";
+      el.items.forEach((item, idx) => {
+        const itemLine = el.line !== undefined ? el.line + idx : undefined;
+        const itemAttr = itemLine !== undefined ? ` data-line="${itemLine}"` : "";
+        html += `<li${itemAttr}>${formatInlineHTML(escapeHtml(item), theme)}</li>`;
+      });
+      return html + "</ol>";
+    }
+    case "checklist": {
+      let html = '<ul class="checklist">';
+      el.items.forEach((item, idx) => {
+        const itemLine = el.line !== undefined ? el.line + idx : undefined;
+        const itemAttr = itemLine !== undefined ? ` data-line="${itemLine}"` : "";
+        html += `<li${itemAttr}><span style="color:${item.checked ? "#" + COLORS.checklistChecked : "#" + c.muted}">${item.checked ? "☑" : "☐"}</span> ${formatInlineHTML(escapeHtml(item.text), theme)}</li>`;
+      });
+      return html + "</ul>";
+    }
     case "codeblock":
-      return `<pre style="background:#${c.codeBg};border:1px solid #${c.codeBorder};"><code class="hljs">${highlightCodeHtml(el.content, el.language)}</code></pre>`;
+      return `<pre${lineAttr} style="background:#${c.codeBg};border:1px solid #${c.codeBorder};"><code class="hljs">${highlightCodeHtml(el.content, el.language)}</code></pre>`;
     case "mermaid": {
       const mermaidCode = applyMermaidTheme(el.content, theme);
-      return `<img class="mermaid-diagram" src="${getMermaidPreviewUrl(mermaidCode)}" alt="Mermaid" onerror="this.outerHTML='<pre style=\\'color:#${COLORS.error};background:#fef2f2;padding:1rem;border-radius:0.5rem;\\'>Diagram render error</pre>'">`;
+      return `<div${lineAttr}><img class="mermaid-diagram" src="${getMermaidPreviewUrl(mermaidCode)}" alt="Mermaid" onerror="this.outerHTML='<pre style=\\'color:#${COLORS.error};background:#fef2f2;padding:1rem;border-radius:0.5rem;\\'>Diagram render error</pre>'"></div>`;
     }
     case "table": {
       let t = `<table style="border-color:#${c.tableBorder};">`;
       el.rows.forEach((row, i) => {
-        t += "<tr>";
+        const rowLine = el.line !== undefined ? (i === 0 ? el.line : el.line + i + 1) : undefined;
+        const rowAttr = rowLine !== undefined ? ` data-line="${rowLine}"` : "";
+        t += `<tr${rowAttr}>`;
         row.forEach((cell, j) => {
           const tag = i === 0 ? "th" : "td";
           const bg = i === 0 ? `background:#${c.tableHeader};` : "";
@@ -79,7 +104,7 @@ function elementToHTML(el, theme) {
       return t + "</table>";
     }
     case "hr":
-      return `<hr style="border:none;height:2px;background:#${c.muted};">`;
+      return `<hr${lineAttr} style="border:none;height:2px;background:#${c.muted};">`;
     default:
       return "";
   }

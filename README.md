@@ -9,7 +9,7 @@ Browser-based Markdown to DOCX/PDF/HTML converter with live preview, syntax high
 ## Features
 
 - **Multi-format export** — DOCX, PDF, HTML (print-ready)
-- **Live preview** — Real-time rendering as you type
+- **Live preview** — Real-time rendering as you type with scroll sync
 - **Syntax highlighting** — 190+ languages via highlight.js
 - **Mermaid diagrams** — Flowcharts, sequence diagrams, etc.
 - **YAML frontmatter** — Title, author, date, TOC customization
@@ -112,6 +112,9 @@ md2docx/
 │   ├── html-preview.js     # AST → preview HTML
 │   ├── highlighter.js      # Code syntax highlighting
 │   ├── mermaid.js          # Diagram rendering via Kroki
+│   ├── scroll-sync.js      # Editor ↔ preview scroll sync
+│   ├── inline-formatting.js # Shared inline markdown parser
+│   ├── logo.js             # Logo handling (SVG→PNG)
 │   ├── ai/                 # AI features (search, readability)
 │   └── themes/
 │       ├── kyotu.js        # KYOTU branded theme
