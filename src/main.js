@@ -6,6 +6,7 @@ import { generateHTMLPreview } from "./html-preview.js";
 import { getThemeList, getTheme } from "./themes/index.js";
 import { analyzeReadability, getScoreColor, getScoreLabel } from "./ai/readability.js";
 import { openSearch, updateSearchIndex } from "./ai/search-ui.js";
+import { initScrollSync, toggleSync, isSyncEnabled, jumpToPreview } from "./scroll-sync.js";
 
 const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -115,6 +116,8 @@ const resetLogo = $("resetLogo");
 const readabilityBadge = $("readabilityBadge");
 const readabilityPanel = $("readabilityPanel");
 const readabilityMetrics = $("readabilityMetrics");
+const scrollSyncToggle = $("scrollSyncToggle");
+const jumpToBtn = $("jumpToBtn");
 
 let customLogoDataUrl = null;
 
@@ -542,4 +545,44 @@ readabilityMetrics.addEventListener("click", (e) => {
   markdownInput.setSelectionRange(charPos, charPos);
   markdownInput.scrollTop =
     (line / lines.length) * markdownInput.scrollHeight - markdownInput.clientHeight / 3;
+});
+
+initScrollSync(markdownInput, preview);
+updateSyncToggleUI();
+
+function updateSyncToggleUI() {
+  const enabled = isSyncEnabled();
+  const icon = scrollSyncToggle.querySelector("svg");
+  const text = scrollSyncToggle.querySelector("span");
+
+  if (enabled) {
+    scrollSyncToggle.classList.add("text-kyotu-orange");
+    scrollSyncToggle.classList.remove("text-gray-400");
+    if (icon) {
+      icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>`;
+    }
+    if (text) text.textContent = "Sync";
+  } else {
+    scrollSyncToggle.classList.remove("text-kyotu-orange");
+    scrollSyncToggle.classList.add("text-gray-400");
+    if (icon) {
+      icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6"/>`;
+    }
+    if (text) text.textContent = "Sync";
+  }
+}
+
+scrollSyncToggle.addEventListener("click", () => {
+  toggleSync();
+  updateSyncToggleUI();
+});
+
+jumpToBtn.addEventListener("click", jumpToPreview);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "S") {
+    e.preventDefault();
+    toggleSync();
+    updateSyncToggleUI();
+  }
 });
