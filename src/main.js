@@ -420,12 +420,16 @@ function updatePreviewPaged(elements, metadata, themeId) {
   const theme = getTheme(themeId);
   const htmlContent = generateHTMLPreview(elements, metadata, themeId);
 
+  const escapedTitle = metadata.title
+    ? metadata.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+    : "";
+
   const pageStyles = `
     @page {
       size: A4;
       margin: 25mm 20mm 25mm 20mm;
       @top-center {
-        content: "${metadata.title ? metadata.title.replace(/"/g, '\\"') : ""}";
+        content: "${escapedTitle}";
         font-family: Calibri, sans-serif;
         font-size: 10pt;
         color: #6b7280;
