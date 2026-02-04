@@ -118,8 +118,11 @@ const readabilityPanel = $("readabilityPanel");
 const readabilityMetrics = $("readabilityMetrics");
 const scrollSyncToggle = $("scrollSyncToggle");
 const jumpToBtn = $("jumpToBtn");
+const modeContinuous = $("modeContinuous");
+const modePages = $("modePages");
 
 let customLogoDataUrl = null;
+let previewMode = "continuous";
 
 const exportOptions = {
   showTitlePage: true,
@@ -384,6 +387,7 @@ function updatePreview() {
 
   if (!md.trim()) {
     preview.innerHTML = emptyStateHTML;
+    preview.classList.remove("page-mode");
     metaInfo.classList.add("hidden");
     readabilityBadge.style.display = "none";
     readabilityPanel.classList.remove("open");
@@ -394,7 +398,13 @@ function updatePreview() {
   const elements = parseBodyToElements(body);
   const themeId = themeSelect.value;
 
-  preview.innerHTML = generateHTMLPreview(elements, metadata, themeId);
+  if (previewMode === "pages") {
+    updatePreviewPaged(elements, metadata, themeId);
+  } else {
+    preview.classList.remove("page-mode");
+    preview.innerHTML = generateHTMLPreview(elements, metadata, themeId);
+  }
+
   metaElements.textContent = elements.length;
   metaInfo.classList.remove("hidden");
 
@@ -402,6 +412,97 @@ function updatePreview() {
   updateReadabilityUI(analysis);
 
   updateSearchIndex(elements);
+}
+
+function updatePreviewPaged(elements, metadata, themeId) {
+  preview.classList.add("page-mode");
+
+  const theme = getTheme(themeId);
+  const htmlContent = generateHTMLPreview(elements, metadata, themeId);
+
+  const escapedTitle = metadata.title
+    ? metadata.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+    : "";
+
+  const pageStyles = `
+    @page {
+      size: A4;
+      margin: 25mm 20mm 25mm 20mm;
+      @top-center {
+        content: "${escapedTitle}";
+        font-family: Calibri, sans-serif;
+        font-size: 10pt;
+        color: #6b7280;
+      }
+      @bottom-center {
+        content: counter(page);
+        font-family: Calibri, sans-serif;
+        font-size: 10pt;
+        color: #6b7280;
+      }
+    }
+    @page :first {
+      @top-center { content: none; }
+      @bottom-center { content: none; }
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #e5e7eb;
+    }
+    body {
+      font-family: Georgia, serif;
+      color: #374151;
+    }
+    .pagedjs_pages {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      gap: 20px;
+    }
+    .pagedjs_page {
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    h1, h2, h3, h4 { color: #${theme.colors.primary}; break-after: avoid; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
+    h2 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+    h4 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.25rem; }
+    p { margin: 0.5rem 0; line-height: 1.7; font-family: Calibri, sans-serif; }
+    ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; font-family: Calibri, sans-serif; }
+    li { margin: 0.25rem 0; }
+    pre { break-inside: avoid; padding: 1rem; border-radius: 0.5rem; margin: 0.75rem 0; font-size: 0.8rem; background: #${theme.colors.codeBg}; border: 1px solid #${theme.colors.codeBorder}; overflow-x: auto; }
+    pre code { background: transparent !important; padding: 0; }
+    code { font-family: Consolas, monospace; font-size: 0.875rem; }
+    p code { background: #${theme.colors.codeBg}; padding: 0.125rem 0.375rem; border-radius: 0.25rem; border: 1px solid #${theme.colors.codeBorder}; }
+    table { break-inside: avoid; border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-size: 0.9rem; font-family: Calibri, sans-serif; }
+    th, td { padding: 0.625rem 0.75rem; text-align: left; border: 1px solid #${theme.colors.tableBorder}; }
+    th { background: #${theme.colors.tableHeader}; }
+    hr { margin: 1.5rem 0; border: none; height: 2px; background: #${theme.colors.muted}; }
+    img.mermaid-diagram { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
+    a { color: #${theme.colors.accent}; text-decoration: none; }
+  `;
+
+  const iframeHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+  <style>${pageStyles}</style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+  preview.innerHTML = "";
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "width:100%;height:100%;border:none;background:#e5e7eb;";
+  iframe.srcdoc = iframeHtml;
+  preview.appendChild(iframe);
 }
 
 async function generateDocument(format = "docx") {
@@ -586,3 +687,19 @@ document.addEventListener("keydown", (e) => {
     updateSyncToggleUI();
   }
 });
+
+function updatePreviewModeUI() {
+  modeContinuous.classList.toggle("active", previewMode === "continuous");
+  modePages.classList.toggle("active", previewMode === "pages");
+}
+
+function setPreviewMode(mode) {
+  previewMode = mode;
+  updatePreviewModeUI();
+  updatePreview();
+}
+
+modeContinuous.addEventListener("click", () => setPreviewMode("continuous"));
+modePages.addEventListener("click", () => setPreviewMode("pages"));
+
+updatePreviewModeUI();
