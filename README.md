@@ -10,6 +10,7 @@ Browser-based Markdown to DOCX/PDF/HTML converter with live preview, syntax high
 
 - **Multi-format export** — DOCX, PDF, HTML (print-ready)
 - **Live preview** — Real-time rendering as you type with scroll sync
+- **Page view mode** — Preview as A4 pages matching export layout
 - **Syntax highlighting** — 190+ languages via highlight.js
 - **Mermaid diagrams** — Flowcharts, sequence diagrams, etc.
 - **YAML frontmatter** — Title, author, date, TOC customization
