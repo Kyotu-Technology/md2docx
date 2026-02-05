@@ -13,6 +13,125 @@ import { EXAMPLE_MD } from "../main.js";
 import { renderPreview } from "../preview-renderer.js";
 import { escapeHtml } from "../utils.js";
 
+function sanitizeTemplate(parsed, base) {
+  const result = structuredClone(base);
+  result.updatedAt = Date.now();
+
+  if (typeof parsed.name === "string") result.name = parsed.name.slice(0, 100);
+  if (typeof parsed.basedOn === "string") result.basedOn = parsed.basedOn.slice(0, 100);
+
+  if (parsed.logo && typeof parsed.logo === "object") {
+    result.logo = { ...base.logo };
+    if (typeof parsed.logo.dataUrl === "string" && parsed.logo.dataUrl.startsWith("data:image/")) {
+      result.logo.dataUrl = parsed.logo.dataUrl;
+    }
+    if (typeof parsed.logo.filename === "string") {
+      result.logo.filename = parsed.logo.filename.slice(0, 255);
+    }
+  }
+
+  if (parsed.fonts && typeof parsed.fonts === "object") {
+    result.fonts = { ...base.fonts };
+    for (const [key, value] of Object.entries(parsed.fonts)) {
+      if (typeof value === "string" && key in base.fonts) {
+        result.fonts[key] = value.slice(0, 100);
+      }
+    }
+  }
+
+  if (parsed.colors && typeof parsed.colors === "object") {
+    result.colors = { ...base.colors };
+    for (const [key, value] of Object.entries(parsed.colors)) {
+      if (typeof value === "string" && /^[0-9a-fA-F]{6}$/.test(value) && key in base.colors) {
+        result.colors[key] = value;
+      }
+    }
+  }
+
+  if (parsed.sizes && typeof parsed.sizes === "object") {
+    result.sizes = { ...base.sizes };
+    for (const [key, value] of Object.entries(parsed.sizes)) {
+      if (typeof value === "number" && isFinite(value) && value > 0 && key in base.sizes) {
+        result.sizes[key] = Math.floor(value);
+      }
+    }
+  }
+
+  if (parsed.spacing && typeof parsed.spacing === "object") {
+    result.spacing = { ...base.spacing };
+    for (const [key, value] of Object.entries(parsed.spacing)) {
+      if (typeof value === "number" && isFinite(value) && value >= 0 && key in base.spacing) {
+        result.spacing[key] = Math.floor(value);
+      }
+    }
+  }
+
+  if (parsed.syntax && typeof parsed.syntax === "object") {
+    result.syntax = { ...base.syntax };
+    for (const [key, value] of Object.entries(parsed.syntax)) {
+      if (typeof value === "string" && /^[0-9a-fA-F]{6}$/.test(value) && key in base.syntax) {
+        result.syntax[key] = value;
+      }
+    }
+  }
+
+  if (parsed.titlePage && typeof parsed.titlePage === "object") {
+    result.titlePage = { ...base.titlePage };
+    const tp = parsed.titlePage;
+
+    if (typeof tp.showLogo === "boolean") result.titlePage.showLogo = tp.showLogo;
+    if (typeof tp.showLine === "boolean") result.titlePage.showLine = tp.showLine;
+    if (typeof tp.verticalSpacing === "number" && isFinite(tp.verticalSpacing)) {
+      result.titlePage.verticalSpacing = Math.max(0, Math.min(15, Math.floor(tp.verticalSpacing)));
+    }
+    if (typeof tp.lineLength === "number" && isFinite(tp.lineLength)) {
+      result.titlePage.lineLength = Math.max(10, Math.min(100, Math.floor(tp.lineLength)));
+    }
+    if (typeof tp.lineChar === "string" && tp.lineChar.length > 0) {
+      result.titlePage.lineChar = tp.lineChar.charAt(0);
+    }
+    if (tp.logoSize && typeof tp.logoSize === "object") {
+      result.titlePage.logoSize = { ...base.titlePage?.logoSize };
+      if (typeof tp.logoSize.width === "number" && isFinite(tp.logoSize.width)) {
+        result.titlePage.logoSize.width = Math.max(
+          50,
+          Math.min(500, Math.floor(tp.logoSize.width))
+        );
+      }
+      if (typeof tp.logoSize.height === "number" && isFinite(tp.logoSize.height)) {
+        result.titlePage.logoSize.height = Math.max(
+          20,
+          Math.min(300, Math.floor(tp.logoSize.height))
+        );
+      }
+    }
+  }
+
+  if (parsed.header && typeof parsed.header === "object") {
+    result.header = { ...base.header };
+    if (typeof parsed.header.enabled === "boolean") result.header.enabled = parsed.header.enabled;
+  }
+
+  if (parsed.footer && typeof parsed.footer === "object") {
+    result.footer = { ...base.footer };
+    if (typeof parsed.footer.enabled === "boolean") result.footer.enabled = parsed.footer.enabled;
+    if (typeof parsed.footer.left === "string")
+      result.footer.left = parsed.footer.left.slice(0, 100);
+    if (typeof parsed.footer.center === "string")
+      result.footer.center = parsed.footer.center.slice(0, 100);
+  }
+
+  if (parsed.mermaid && typeof parsed.mermaid === "object") {
+    result.mermaid = { ...base.mermaid };
+    if (typeof parsed.mermaid.theme === "string")
+      result.mermaid.theme = parsed.mermaid.theme.slice(0, 50);
+    if (typeof parsed.mermaid.config === "string")
+      result.mermaid.config = parsed.mermaid.config.slice(0, 5000);
+  }
+
+  return result;
+}
+
 let modal = null;
 let currentTemplate = null;
 let currentTab = "general";
@@ -917,10 +1036,10 @@ function setupJsonHandlers() {
   function applyJson() {
     try {
       const parsed = JSON.parse(textarea.value);
-      parsed.id = currentTemplate.id;
-      parsed.createdAt = currentTemplate.createdAt;
-      parsed.updatedAt = Date.now();
-      currentTemplate = parsed;
+      const sanitized = sanitizeTemplate(parsed, currentTemplate);
+      sanitized.id = currentTemplate.id;
+      sanitized.createdAt = currentTemplate.createdAt;
+      currentTemplate = sanitized;
       errorEl.classList.add("hidden");
       updatePreview();
     } catch (e) {
