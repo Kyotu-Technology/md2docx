@@ -9,6 +9,7 @@ import { initScrollSync, toggleSync, isSyncEnabled, jumpToPreview } from "./scro
 import { openTemplateManager } from "./template-manager/index.js";
 import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
+import { escapeHtml } from "./utils.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -380,7 +381,7 @@ function updateReadabilityUI(analysis) {
     issues.push(
       ...analysis.headingIssues.map(
         (h) =>
-          `<span class="text-red-500 cursor-pointer" data-line="${h.line}">Heading skip: ${h.got} after ${h.expected} "${h.content}"</span>`
+          `<span class="text-red-500 cursor-pointer" data-line="${h.line}">Heading skip: ${h.got} after ${h.expected} "${escapeHtml(h.content)}"</span>`
       )
     );
   }
@@ -431,7 +432,7 @@ function updateReadabilityUI(analysis) {
             .map((s) => {
               const maxWords = Math.max(...analysis.sectionBalance.sections.map((x) => x.words));
               const h = maxWords > 0 ? Math.max(4, (s.words / maxWords) * 32) : 4;
-              return `<div title="${s.heading}: ${s.words} words" class="bg-kyotu-orange/60 rounded-t" style="width:${100 / analysis.sectionBalance.sections.length}%;height:${h}px"></div>`;
+              return `<div title="${escapeHtml(s.heading)}: ${s.words} words" class="bg-kyotu-orange/60 rounded-t" style="width:${100 / analysis.sectionBalance.sections.length}%;height:${h}px"></div>`;
             })
             .join("")}
         </div>

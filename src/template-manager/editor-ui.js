@@ -653,7 +653,7 @@ function renderTitlePageTab() {
         <div class="pl-6 border-l-2 border-gray-700 grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs text-gray-500 mb-1">Line Character</label>
-            <input type="text" data-tp="lineChar" value="${tp.lineChar || "─"}" maxlength="1"
+            <input type="text" data-tp="lineChar" value="${escapeHtml(tp.lineChar || "─")}" maxlength="1"
                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:outline-none focus:border-kyotu-orange">
           </div>
           <div>

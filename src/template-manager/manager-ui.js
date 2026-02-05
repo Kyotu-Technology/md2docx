@@ -411,7 +411,7 @@ async function handleImportDocx(e) {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
             </svg>
-            <span class="font-medium">Extracted: ${result.extracted.join(", ")}</span>
+            <span class="font-medium">Extracted: ${escapeHtml(result.extracted.join(", "))}</span>
           </div>
           <p class="text-sm text-gray-400">Review the extracted values below and create a new template.</p>
         </div>
@@ -432,7 +432,7 @@ async function handleImportDocx(e) {
               .map(
                 ([key, value]) => `
               <div class="bg-gray-800/50 rounded-lg p-3">
-                <div class="text-xs text-gray-500 mb-1">${key}</div>
+                <div class="text-xs text-gray-500 mb-1">${escapeHtml(key)}</div>
                 <div class="text-sm text-white font-medium">${escapeHtml(value)}</div>
               </div>
             `
@@ -452,10 +452,10 @@ async function handleImportDocx(e) {
               .map(
                 ([key, value]) => `
               <div class="bg-gray-800/50 rounded-lg p-3 flex items-center gap-2">
-                <div class="w-6 h-6 rounded border border-gray-600" style="background: #${value}"></div>
+                <div class="w-6 h-6 rounded border border-gray-600" style="background: #${escapeHtml(value)}"></div>
                 <div>
-                  <div class="text-xs text-gray-500">${key}</div>
-                  <div class="text-xs text-white font-mono">#${value}</div>
+                  <div class="text-xs text-gray-500">${escapeHtml(key)}</div>
+                  <div class="text-xs text-white font-mono">#${escapeHtml(value)}</div>
                 </div>
               </div>
             `
@@ -475,7 +475,7 @@ async function handleImportDocx(e) {
               .map(
                 ([key, value]) => `
               <div class="bg-gray-800/50 rounded-lg p-3">
-                <div class="text-xs text-gray-500">${key}</div>
+                <div class="text-xs text-gray-500">${escapeHtml(key)}</div>
                 <div class="text-sm text-white">${value} (${value / 2}pt)</div>
               </div>
             `
@@ -495,7 +495,7 @@ async function handleImportDocx(e) {
               .map(
                 ([key, value]) => `
               <div class="bg-gray-800/50 rounded-lg p-3">
-                <div class="text-xs text-gray-500">${key}</div>
+                <div class="text-xs text-gray-500">${escapeHtml(key)}</div>
                 <div class="text-sm text-white">${value}</div>
               </div>
             `
