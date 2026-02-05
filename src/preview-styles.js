@@ -106,7 +106,14 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
     :is(${selectors}) ul, :is(${selectors}) ol {
       font-family: ${bodyFont} !important;
       font-size: ${bodySize}px !important;
-      margin: 0.5rem 0 ${paraAfter}px 1.5rem !important;
+      margin: 0.5rem 0 ${paraAfter}px 0 !important;
+      padding-left: 1.5rem !important;
+    }
+    :is(${selectors}) ul {
+      list-style-type: disc !important;
+    }
+    :is(${selectors}) ol {
+      list-style-type: decimal !important;
     }
     :is(${selectors}) li {
       margin: 0.25rem 0 !important;
