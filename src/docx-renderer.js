@@ -1,4 +1,4 @@
-import { getTheme } from "./themes/index.js";
+import { getThemeOrTemplate } from "./themes/index.js";
 import { highlightCode } from "./highlighter.js";
 import { renderMermaidDiagram, applyMermaidTheme } from "./mermaid.js";
 import { COLORS } from "./constants.js";
@@ -139,6 +139,22 @@ async function createTitlePage(metadata, theme, t, logoPng) {
             font: t.fontBody,
             size: t.sizeBody,
             color: t.colorMuted,
+          }),
+        ],
+      })
+    );
+  }
+
+  if (metadata.subtitle) {
+    children.push(
+      new Paragraph({
+        spacing: { before: 300, after: 100 },
+        children: [
+          new TextRun({
+            text: metadata.subtitle,
+            font: t.fontBody,
+            size: t.sizeSubtitle,
+            color: t.colorSecondary,
           }),
         ],
       })
@@ -556,7 +572,7 @@ async function elementToDocx(element, theme, t) {
 export async function createDocument(metadata, elements, themeId = "kyotu", options = {}) {
   const { Document, Header, Footer, AlignmentType, LevelFormat } = getDocx();
 
-  const theme = getTheme(themeId);
+  const theme = await getThemeOrTemplate(themeId);
   const t = themeAdapter(theme);
 
   const showTitlePage = options.showTitlePage !== false;

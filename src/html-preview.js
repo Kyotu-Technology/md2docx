@@ -4,18 +4,94 @@ import { getTheme } from "./themes/index.js";
 import { escapeHtml } from "./utils.js";
 import { COLORS } from "./constants.js";
 
-export function generateHTMLPreview(elements, metadata, themeId = "kyotu") {
-  const theme = getTheme(themeId);
+const hpToPx = (hp) => (hp / 2) * (16 / 12);
+
+function generateTitlePage(metadata, theme, options = {}) {
   const c = theme.colors;
+  const s = theme.sizes;
+  const f = theme.fonts;
+
+  const tp = {
+    verticalSpacing: 5,
+    showLogo: false,
+    logoSize: { width: 180, height: 76 },
+    showLine: false,
+    lineChar: "─",
+    lineLength: 40,
+    ...theme.titlePage,
+  };
+
+  let html = '<div class="title-page">';
+
+  if (tp.showLogo && options.logoDataUrl) {
+    const logoSize = tp.logoSize || { width: 180, height: 76 };
+    html += `<div class="title-page-logo" style="margin-bottom: 2rem;">
+      <img src="${options.logoDataUrl}" alt="Logo"
+           style="width: ${logoSize.width}px; height: ${logoSize.height}px; object-fit: contain;">
+    </div>`;
+  }
+
+  if (metadata.title) {
+    const hasBorderLine = tp.showLine && !tp.lineChar;
+    html += `<div class="title-page-title" style="
+      font-family: '${f.heading}', serif;
+      font-size: ${hpToPx(s.title)}px;
+      font-weight: 700;
+      color: #${c.primary};
+      margin: 0 0 0.5rem;
+      ${hasBorderLine ? `border-bottom: 3px solid #${c.primary}; padding-bottom: 0.5rem;` : ""}
+    ">${escapeHtml(metadata.title)}</div>`;
+  }
+
+  if (tp.showLine && tp.lineChar) {
+    html += `<div class="title-page-line" style="
+      font-family: '${f.body}', sans-serif;
+      font-size: ${hpToPx(s.body)}px;
+      color: #${c.muted};
+      margin: 0.75rem 0;
+      letter-spacing: 0;
+    ">${tp.lineChar.repeat(tp.lineLength || 40)}</div>`;
+  }
+
+  if (metadata.subtitle) {
+    html += `<div class="title-page-subtitle" style="
+      font-family: '${f.body}', sans-serif;
+      font-size: ${hpToPx(s.subtitle)}px;
+      color: #${c.secondary};
+      margin: 0.5rem 0;
+    ">${escapeHtml(metadata.subtitle)}</div>`;
+  }
+
+  if (metadata.author) {
+    html += `<div class="title-page-author" style="
+      font-family: '${f.body}', sans-serif;
+      font-size: ${hpToPx(s.subtitle)}px;
+      color: #${c.secondary};
+      margin-top: 1rem;
+    ">${escapeHtml(metadata.author)}</div>`;
+  }
+
+  if (metadata.date) {
+    html += `<div class="title-page-date" style="
+      font-family: '${f.body}', sans-serif;
+      font-size: ${hpToPx(s.body)}px;
+      color: #${c.muted};
+    ">${escapeHtml(metadata.date)}</div>`;
+  }
+
+  html += "</div>";
+  return html;
+}
+
+export function generateHTMLPreview(elements, metadata, themeIdOrObject = "kyotu", options = {}) {
+  const theme = typeof themeIdOrObject === "string" ? getTheme(themeIdOrObject) : themeIdOrObject;
 
   let html = "";
-  if (metadata.title) {
-    html += `<div style="margin-bottom:2rem;padding-bottom:1rem;border-bottom:3px solid #${c.primary};"><h1 style="font-size:1.75rem;margin:0;font-weight:700;color:#${c.primary};">${escapeHtml(metadata.title)}</h1>`;
-    if (metadata.author)
-      html += `<p style="color:#${c.secondary};margin:0.5rem 0 0;font-weight:500;">${escapeHtml(metadata.author)}</p>`;
-    if (metadata.date)
-      html += `<p style="color:#${c.muted};margin:0.25rem 0 0;font-size:0.9rem;">${escapeHtml(metadata.date)}</p>`;
-    html += `</div>`;
+  if (metadata.title || metadata.subtitle || metadata.author || metadata.date) {
+    html += generateTitlePage(metadata, theme, options);
+    if (options.pagedMode) {
+      html += '<div class="title-page-break"></div>';
+    }
   }
   for (const el of elements) html += elementToHTML(el, theme);
   return html;

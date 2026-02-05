@@ -2,14 +2,17 @@ import { parseMarkdown, parseBodyToElements } from "./parser.js";
 import { generateDocxBlob } from "./docx-renderer.js";
 import { generatePdfBlob } from "./pdf-renderer.js";
 import { generateHtmlBlob } from "./html-export.js";
-import { generateHTMLPreview } from "./html-preview.js";
-import { getThemeList, getTheme } from "./themes/index.js";
+import { getThemeOrTemplate, getFullThemeList } from "./themes/index.js";
 import { analyzeReadability, getScoreColor, getScoreLabel } from "./ai/readability.js";
 import { openSearch, updateSearchIndex } from "./ai/search-ui.js";
 import { initScrollSync, toggleSync, isSyncEnabled, jumpToPreview } from "./scroll-sync.js";
+import { openTemplateManager } from "./template-manager/index.js";
+import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
+import { loadLogoPng } from "./logo.js";
 
-const EXAMPLE_MD = `---
+export const EXAMPLE_MD = `---
 title: "Technical Documentation"
+subtitle: "Implementation Guide"
 author: "KYOTU Technology"
 date: "January 2025"
 ---
@@ -120,6 +123,7 @@ const scrollSyncToggle = $("scrollSyncToggle");
 const jumpToBtn = $("jumpToBtn");
 const modeContinuous = $("modeContinuous");
 const modePages = $("modePages");
+const manageTemplatesBtn = $("manageTemplatesBtn");
 
 let customLogoDataUrl = null;
 let previewMode = "continuous";
@@ -202,17 +206,32 @@ resetLogo.addEventListener("click", () => {
   customLogoDataUrl = null;
   exportOptions.customLogo = null;
   logoInput.value = "";
-  const theme = getTheme(themeSelect.value);
-  logoFileName.textContent = theme.id === "kyotu" ? "KYOTU (default)" : "None";
+  const themeId = themeSelect.value;
+  if (themeId === "kyotu") {
+    logoFileName.textContent = "KYOTU (default)";
+  } else if (themeId.startsWith("user-")) {
+    logoFileName.textContent = "Custom template";
+  } else {
+    logoFileName.textContent = "None";
+  }
   resetLogo.classList.add("hidden");
 });
 
 themeSelect.addEventListener("change", () => {
   updatePreview();
   if (!customLogoDataUrl) {
-    const theme = getTheme(themeSelect.value);
-    logoFileName.textContent = theme.id === "kyotu" ? "KYOTU (default)" : "None";
+    const themeId = themeSelect.value;
+    if (themeId === "kyotu") {
+      logoFileName.textContent = "KYOTU (default)";
+    } else if (themeId.startsWith("user-")) {
+      logoFileName.textContent = "Custom template";
+    } else {
+      logoFileName.textContent = "None";
+    }
   }
+  try {
+    localStorage.setItem("md2docx-theme", themeSelect.value);
+  } catch {}
 });
 
 generateBtn.addEventListener("click", () => {
@@ -262,12 +281,62 @@ document.addEventListener("mouseup", () => {
   }
 });
 
-const themes = getThemeList();
-themes.forEach((t) => {
-  const opt = document.createElement("option");
-  opt.value = t.id;
-  opt.textContent = t.name;
-  themeSelect.appendChild(opt);
+async function initThemeSelect() {
+  const allThemes = await getFullThemeList();
+
+  themeSelect.innerHTML = "";
+
+  const builtinGroup = document.createElement("optgroup");
+  builtinGroup.label = "Built-in";
+
+  const userGroup = document.createElement("optgroup");
+  userGroup.label = "Your Templates";
+
+  let hasUserTemplates = false;
+
+  for (const theme of allThemes) {
+    const option = document.createElement("option");
+    option.value = theme.id;
+    option.textContent = theme.name;
+
+    if (theme.isBuiltin) {
+      builtinGroup.appendChild(option);
+    } else {
+      userGroup.appendChild(option);
+      hasUserTemplates = true;
+    }
+  }
+
+  themeSelect.appendChild(builtinGroup);
+  if (hasUserTemplates) {
+    themeSelect.appendChild(userGroup);
+  }
+
+  try {
+    const savedTheme = localStorage.getItem("md2docx-theme");
+    if (savedTheme && allThemes.some((t) => t.id === savedTheme)) {
+      themeSelect.value = savedTheme;
+    }
+  } catch {}
+}
+
+initThemeSelect().then(() => {
+  try {
+    const savedContent = localStorage.getItem("md2docx-content");
+    if (savedContent) {
+      markdownInput.value = savedContent;
+      updatePreview();
+    }
+  } catch {}
+});
+
+manageTemplatesBtn?.addEventListener("click", () => {
+  openTemplateManager((selectedId) => {
+    if (selectedId) {
+      themeSelect.value = selectedId;
+      updatePreview();
+    }
+  });
 });
 
 const emptyStateHTML = `
@@ -377,7 +446,7 @@ function updateReadabilityUI(analysis) {
   `;
 }
 
-function updatePreview() {
+async function updatePreview() {
   const md = markdownInput.value;
   charCount.textContent = `${md.length} chars`;
 
@@ -397,12 +466,20 @@ function updatePreview() {
   const { metadata, body } = parseMarkdown(md);
   const elements = parseBodyToElements(body);
   const themeId = themeSelect.value;
+  const theme = await getThemeOrTemplate(themeId);
+
+  let logoDataUrl = null;
+  if (theme.titlePage?.showLogo) {
+    logoDataUrl = customLogoDataUrl || theme.logo?.dataUrl || (await loadLogoPng(1, null));
+  }
 
   if (previewMode === "pages") {
-    updatePreviewPaged(elements, metadata, themeId);
+    const previewOptions = { logoDataUrl, pagedMode: true };
+    await updatePreviewPaged(elements, metadata, theme, previewOptions);
   } else {
+    const previewOptions = { logoDataUrl };
     preview.classList.remove("page-mode");
-    preview.innerHTML = generateHTMLPreview(elements, metadata, themeId);
+    await renderPreview(preview, elements, metadata, theme, previewOptions);
   }
 
   metaElements.textContent = elements.length;
@@ -414,15 +491,34 @@ function updatePreview() {
   updateSearchIndex(elements);
 }
 
-function updatePreviewPaged(elements, metadata, themeId) {
+async function updatePreviewPaged(elements, metadata, theme, options = {}) {
   preview.classList.add("page-mode");
 
-  const theme = getTheme(themeId);
-  const htmlContent = generateHTMLPreview(elements, metadata, themeId);
+  const htmlContent = generateHTMLPreview(elements, metadata, theme, options);
 
   const escapedTitle = metadata.title
     ? metadata.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
     : "";
+
+  const f = theme.fonts;
+  const s = theme.sizes;
+  const sp = theme.spacing;
+  const c = theme.colors;
+
+  const hpToPx = (hp) => (hp / 2) * (16 / 12);
+  const twipsToPx = (tw) => tw / 20;
+
+  const googleFontMap = {
+    Calibri: "Carlito",
+    Cambria: "Caladea",
+    Consolas: "Source Code Pro",
+  };
+
+  const fontsToLoad = [f.heading, f.body, f.mono]
+    .map((fn) => googleFontMap[fn] || fn)
+    .filter((fn, i, arr) => arr.indexOf(fn) === i)
+    .map((fn) => fn.replace(/ /g, "+"))
+    .join("&family=");
 
   const pageStyles = `
     @page {
@@ -430,13 +526,13 @@ function updatePreviewPaged(elements, metadata, themeId) {
       margin: 25mm 20mm 25mm 20mm;
       @top-center {
         content: "${escapedTitle}";
-        font-family: Calibri, sans-serif;
+        font-family: "${f.body}", Carlito, sans-serif;
         font-size: 10pt;
         color: #6b7280;
       }
       @bottom-center {
         content: counter(page);
-        font-family: Calibri, sans-serif;
+        font-family: "${f.body}", Carlito, sans-serif;
         font-size: 10pt;
         color: #6b7280;
       }
@@ -451,8 +547,8 @@ function updatePreviewPaged(elements, metadata, themeId) {
       background: #e5e7eb;
     }
     body {
-      font-family: Georgia, serif;
-      color: #374151;
+      font-family: "${f.heading}", serif;
+      color: #${c.text};
     }
     .pagedjs_pages {
       display: flex;
@@ -465,30 +561,38 @@ function updatePreviewPaged(elements, metadata, themeId) {
       background: white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    h1, h2, h3, h4 { color: #${theme.colors.primary}; break-after: avoid; }
-    h1 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
-    h2 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
-    h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; }
-    h4 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.25rem; }
-    p { margin: 0.5rem 0; line-height: 1.7; font-family: Calibri, sans-serif; }
-    ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; font-family: Calibri, sans-serif; }
+    h1, h2, h3, h4 { font-family: "${f.heading}", serif; color: #${c.primary}; break-after: avoid; }
+    h1 { font-size: ${hpToPx(s.h1)}px; font-weight: 700; margin: ${twipsToPx(sp.h1Before)}px 0 ${twipsToPx(sp.h1After)}px; }
+    h2 { font-size: ${hpToPx(s.h2)}px; font-weight: 600; margin: ${twipsToPx(sp.h2Before)}px 0 ${twipsToPx(sp.h2After)}px; }
+    h3 { font-size: ${hpToPx(s.h3)}px; font-weight: 600; margin: ${twipsToPx(sp.h3Before)}px 0 ${twipsToPx(sp.h3After)}px; }
+    h4 { font-size: ${hpToPx(s.h4)}px; font-weight: 600; margin: ${twipsToPx(sp.h4Before)}px 0 ${twipsToPx(sp.h4After)}px; }
+    p { margin: 0 0 ${twipsToPx(sp.paraAfter)}px; line-height: 1.7; font-family: "${f.body}", Carlito, sans-serif; font-size: ${hpToPx(s.body)}px; }
+    ul, ol { margin: 0 0 ${twipsToPx(sp.paraAfter)}px 1.5rem; font-family: "${f.body}", Carlito, sans-serif; font-size: ${hpToPx(s.body)}px; }
     li { margin: 0.25rem 0; }
-    pre { break-inside: avoid; padding: 1rem; border-radius: 0.5rem; margin: 0.75rem 0; font-size: 0.8rem; background: #${theme.colors.codeBg}; border: 1px solid #${theme.colors.codeBorder}; overflow-x: auto; }
+    pre { break-inside: avoid; padding: 1rem; border-radius: 0.5rem; margin: 0.75rem 0; background: #${c.codeBg}; border: 1px solid #${c.codeBorder}; overflow-x: auto; }
     pre code { background: transparent !important; padding: 0; }
-    code { font-family: Consolas, monospace; font-size: 0.875rem; }
-    p code { background: #${theme.colors.codeBg}; padding: 0.125rem 0.375rem; border-radius: 0.25rem; border: 1px solid #${theme.colors.codeBorder}; }
-    table { break-inside: avoid; border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-size: 0.9rem; font-family: Calibri, sans-serif; }
-    th, td { padding: 0.625rem 0.75rem; text-align: left; border: 1px solid #${theme.colors.tableBorder}; }
-    th { background: #${theme.colors.tableHeader}; }
-    hr { margin: 1.5rem 0; border: none; height: 2px; background: #${theme.colors.muted}; }
+    code { font-family: "${f.mono}", "Source Code Pro", monospace; font-size: ${hpToPx(s.mono)}px; }
+    p code { background: #${c.codeBg}; padding: 0.125rem 0.375rem; border-radius: 0.25rem; border: 1px solid #${c.codeBorder}; }
+    table { break-inside: avoid; border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-family: "${f.body}", Carlito, sans-serif; font-size: ${hpToPx(s.table)}px; }
+    th, td { padding: 0.625rem 0.75rem; text-align: left; border: 1px solid #${c.tableBorder}; }
+    th { background: #${c.tableHeader}; }
+    hr { margin: 1.5rem 0; border: none; height: 2px; background: #${c.muted}; }
     img.mermaid-diagram { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
-    a { color: #${theme.colors.accent}; text-decoration: none; }
+    a { color: #${c.accent}; text-decoration: none; }
+    .title-page { display: block; margin-bottom: 1rem; }
+    .title-page-logo { margin-bottom: 2rem; }
+    .title-page-title { margin: 0 0 0.5rem; }
+    .title-page-line { margin: 0.75rem 0; letter-spacing: 0; }
+    .title-page-break { break-before: page; height: 0; }
   `;
 
   const iframeHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=${fontsToLoad}:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
   <style>${pageStyles}</style>
@@ -534,7 +638,7 @@ async function generateDocument(format = "docx") {
 
     if (format === "html" || format === "all") {
       showStatus(`Generating HTML (${elements.length} elements)...`);
-      const htmlBlob = generateHtmlBlob(elements, metadata, themeId);
+      const htmlBlob = await generateHtmlBlob(elements, metadata, themeId);
       downloadBlob(htmlBlob, `${filename}.html`);
     }
 
@@ -607,27 +711,6 @@ document.addEventListener("keydown", (e) => {
     openSearch();
   }
 });
-
-themeSelect.addEventListener("change", () => {
-  try {
-    localStorage.setItem("md2docx-theme", themeSelect.value);
-  } catch {}
-});
-
-try {
-  const savedTheme = localStorage.getItem("md2docx-theme");
-  if (savedTheme && themes.some((t) => t.id === savedTheme)) {
-    themeSelect.value = savedTheme;
-  }
-} catch {}
-
-try {
-  const savedContent = localStorage.getItem("md2docx-content");
-  if (savedContent) {
-    markdownInput.value = savedContent;
-    updatePreview();
-  }
-} catch {}
 
 readabilityBadge.addEventListener("click", () => {
   readabilityPanel.classList.toggle("open");
