@@ -1,5 +1,11 @@
 import { kyotu } from "./kyotu.js";
 import { minimal } from "./minimal.js";
+import {
+  getAllTemplates,
+  getTemplate,
+  saveTemplate,
+  deleteTemplate,
+} from "../template-manager/storage.js";
 
 export const themes = {
   kyotu,
@@ -44,4 +50,64 @@ export function getTheme(id) {
 
 export function getThemeList() {
   return Object.values(themes).map((t) => ({ id: t.id, name: t.name }));
+}
+
+export async function getUserTemplates() {
+  try {
+    return await getAllTemplates();
+  } catch {
+    return [];
+  }
+}
+
+export async function saveUserTemplate(template) {
+  return saveTemplate(template);
+}
+
+export async function deleteUserTemplate(id) {
+  return deleteTemplate(id);
+}
+
+export async function getFullThemeList() {
+  const builtinList = Object.values(themes).map((t) => ({
+    id: t.id,
+    name: t.name,
+    isBuiltin: true,
+  }));
+
+  try {
+    const userTemplates = await getAllTemplates();
+    const userList = userTemplates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      isBuiltin: false,
+      basedOn: t.basedOn,
+      updatedAt: t.updatedAt,
+    }));
+    return [...builtinList, ...userList];
+  } catch {
+    return builtinList;
+  }
+}
+
+export async function getThemeOrTemplate(id) {
+  if (themes[id]) {
+    return deepMergeDefaults(themes[id], THEME_DEFAULTS);
+  }
+
+  if (id && id.startsWith("user-")) {
+    try {
+      const template = await getTemplate(id);
+      if (template) {
+        return deepMergeDefaults(template, THEME_DEFAULTS);
+      }
+      console.warn(`Template "${id}" not found in IndexedDB, falling back to default theme`);
+    } catch (err) {
+      console.warn(
+        `Failed to load template "${id}": ${err.message}, falling back to default theme`
+      );
+    }
+  }
+
+  return deepMergeDefaults(themes[defaultTheme], THEME_DEFAULTS);
 }

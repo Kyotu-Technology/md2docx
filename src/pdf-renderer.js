@@ -1,4 +1,4 @@
-import { getTheme } from "./themes/index.js";
+import { getThemeOrTemplate } from "./themes/index.js";
 import { renderMermaidDiagram, applyMermaidTheme } from "./mermaid.js";
 import { hexToRgb } from "./utils.js";
 import { COLORS } from "./constants.js";
@@ -381,6 +381,15 @@ async function createTitlePageContent(metadata, theme, logoPng) {
     }
   }
 
+  if (metadata.subtitle) {
+    content.push({
+      text: sanitizeText(metadata.subtitle),
+      fontSize: themeSizeToPt(theme.sizes.subtitle),
+      color: hexToRgb(c.secondary),
+      margin: [0, 15, 0, 5],
+    });
+  }
+
   if (metadata.author) {
     content.push({
       text: sanitizeText(metadata.author),
@@ -425,7 +434,7 @@ function createTocContent(tocTitle, theme) {
 }
 
 export async function generatePdfBlob(metadata, elements, themeId = "kyotu", options = {}) {
-  const theme = getTheme(themeId);
+  const theme = await getThemeOrTemplate(themeId);
   const c = theme.colors;
   const sz = theme.sizes;
 

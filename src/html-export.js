@@ -1,10 +1,10 @@
-import { getTheme } from "./themes/index.js";
+import { getThemeOrTemplate } from "./themes/index.js";
 import { generateHTMLPreview } from "./html-preview.js";
 import { escapeHtml } from "./utils.js";
 import { COLORS } from "./constants.js";
 
-export function generateHtmlDocument(elements, metadata, themeId = "kyotu") {
-  const theme = getTheme(themeId);
+export async function generateHtmlDocument(elements, metadata, themeId = "kyotu") {
+  const theme = await getThemeOrTemplate(themeId);
   const c = theme.colors;
   const f = theme.fonts;
   const previewContent = generateHTMLPreview(elements, metadata, themeId);
@@ -211,7 +211,7 @@ export function generateHtmlDocument(elements, metadata, themeId = "kyotu") {
   return html;
 }
 
-export function generateHtmlBlob(elements, metadata, themeId = "kyotu") {
-  const html = generateHtmlDocument(elements, metadata, themeId);
+export async function generateHtmlBlob(elements, metadata, themeId = "kyotu") {
+  const html = await generateHtmlDocument(elements, metadata, themeId);
   return new Blob([html], { type: "text/html;charset=utf-8" });
 }
