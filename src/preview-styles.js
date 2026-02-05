@@ -1,83 +1,7 @@
-const GOOGLE_FONT_MAP = {
-  Calibri: "Carlito",
-  Cambria: "Caladea",
-  Consolas: "Source Code Pro",
-  "Courier New": "Courier Prime",
-  "Trebuchet MS": "Fira Sans",
-  "Lucida Console": "Source Code Pro",
-};
+import { getFontStack, getMonoFontStack, injectFontStyles } from "./fonts.js";
 
-const SYSTEM_FONTS = [
-  "Georgia",
-  "Arial",
-  "Times New Roman",
-  "Verdana",
-  "Tahoma",
-  "Helvetica",
-  "Impact",
-  "Comic Sans MS",
-  "Segoe UI",
-  "Roboto",
-  "Open Sans",
-];
-
-const loadedFonts = new Set();
-
-export async function loadGoogleFont(fontName) {
-  const googleName = GOOGLE_FONT_MAP[fontName] || fontName;
-
-  if (loadedFonts.has(googleName)) return;
-  if (SYSTEM_FONTS.includes(fontName)) return;
-
-  const testString = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  if (document.fonts.check(`16px "${fontName}"`, testString)) {
-    loadedFonts.add(googleName);
-    return;
-  }
-
-  try {
-    const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(googleName.replace(/ /g, "+"))}:wght@400;500;600;700&display=swap`;
-
-    if (document.querySelector(`link[href="${url}"]`)) {
-      loadedFonts.add(googleName);
-      return;
-    }
-
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = url;
-    document.head.appendChild(link);
-
-    await new Promise((resolve) => {
-      link.onload = resolve;
-      link.onerror = resolve;
-    });
-
-    loadedFonts.add(googleName);
-  } catch {
-    // silently fail - font will fallback
-  }
-}
-
-export async function loadThemeFonts(theme) {
-  const fonts = [theme.fonts.heading, theme.fonts.body, theme.fonts.mono];
-  await Promise.all(fonts.map(loadGoogleFont));
-}
-
-function getFontStack(fontName) {
-  const googleAlt = GOOGLE_FONT_MAP[fontName];
-  if (googleAlt && googleAlt !== fontName) {
-    return `"${fontName}", "${googleAlt}", system-ui, sans-serif`;
-  }
-  return `"${fontName}", system-ui, sans-serif`;
-}
-
-function getMonoFontStack(fontName) {
-  const googleAlt = GOOGLE_FONT_MAP[fontName];
-  if (googleAlt && googleAlt !== fontName) {
-    return `"${fontName}", "${googleAlt}", ui-monospace, monospace`;
-  }
-  return `"${fontName}", ui-monospace, monospace`;
+export async function loadThemeFonts() {
+  injectFontStyles();
 }
 
 function halfPointsToPx(hp) {
@@ -94,8 +18,8 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
   const sp = theme.spacing;
   const c = theme.colors;
 
-  const headingFont = getFontStack(f.heading);
-  const bodyFont = getFontStack(f.body);
+  const headingFont = getFontStack(f.heading, "serif");
+  const bodyFont = getFontStack(f.body, "sans-serif");
   const monoFont = getMonoFontStack(f.mono);
 
   const titleSize = halfPointsToPx(s.title);
@@ -279,6 +203,6 @@ export function updatePreviewStyles(theme) {
 }
 
 export async function applyThemeToPreview(theme) {
-  await loadThemeFonts(theme);
+  await loadThemeFonts();
   updatePreviewStyles(theme);
 }

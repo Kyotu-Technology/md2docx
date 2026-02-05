@@ -35,3 +35,4 @@ Open [localhost:3000](http://localhost:3000)
 ## License
 
 MIT — [KYOTU Technology](https://kyotutechnology.com)
+
