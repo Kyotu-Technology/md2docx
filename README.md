@@ -4,6 +4,8 @@ Convert Markdown to professional DOCX, PDF, and HTML — entirely in your browse
 
 **[→ Open App](https://kyotu-technology.github.io/md2docx/)** — no installation, no sign-up
 
+![MD2DOCX](docs/screenshot.png)
+
 ---
 
 ## What it does
@@ -29,8 +31,6 @@ Open [localhost:3000](http://localhost:3000)
 ## Contributing
 
 1. Fork → 2. Branch → 3. PR
-
-See [CLAUDE.md](CLAUDE.md) for architecture and code conventions.
 
 ## License
 
