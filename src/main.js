@@ -10,6 +10,7 @@ import { openTemplateManager } from "./template-manager/index.js";
 import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
+import { toast } from "./notifications/index.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -613,7 +614,7 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
 async function generateDocument(format = "docx") {
   const md = markdownInput.value;
   if (!md.trim()) {
-    alert("Please paste or load Markdown content!");
+    toast.warning("Please paste or load Markdown content!");
     return;
   }
 
@@ -647,7 +648,7 @@ async function generateDocument(format = "docx") {
   } catch (err) {
     console.error(err);
     hideStatus();
-    alert(`Error: ${err.message}`);
+    toast.error(`Error: ${err.message}`);
   } finally {
     generateBtn.disabled = false;
   }
