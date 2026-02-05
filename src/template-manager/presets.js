@@ -98,16 +98,18 @@ export const COLOR_PRESETS = {
 
 export const FONT_PRESETS = {
   heading: [
-    "Georgia",
-    "Calibri Light",
+    "Calibri",
     "Arial",
     "Times New Roman",
-    "Cambria",
-    "Garamond",
-    "Trebuchet MS",
+    "Georgia",
     "Verdana",
     "Tahoma",
+    "Trebuchet MS",
+    "Cambria",
+    "Garamond",
     "Century Gothic",
+    "Palatino Linotype",
+    "Book Antiqua",
   ],
   body: [
     "Calibri",
@@ -118,21 +120,12 @@ export const FONT_PRESETS = {
     "Tahoma",
     "Trebuchet MS",
     "Cambria",
+    "Garamond",
+    "Century Gothic",
     "Palatino Linotype",
     "Book Antiqua",
   ],
-  mono: [
-    "Consolas",
-    "Courier New",
-    "Lucida Console",
-    "Monaco",
-    "Source Code Pro",
-    "Fira Code",
-    "JetBrains Mono",
-    "Ubuntu Mono",
-    "Menlo",
-    "Cascadia Code",
-  ],
+  mono: ["Consolas", "Courier New", "Source Code Pro", "Fira Code", "JetBrains Mono"],
 };
 
 export function getPresetColors(presetId) {

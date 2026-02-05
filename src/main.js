@@ -11,6 +11,7 @@ import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
 import { toast } from "./notifications/index.js";
+import { generateFontFaceCSS, getFontName } from "./fonts.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -510,17 +511,12 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
   const hpToPx = (hp) => (hp / 2) * (16 / 12);
   const twipsToPx = (tw) => tw / 20;
 
-  const googleFontMap = {
-    Calibri: "Carlito",
-    Cambria: "Caladea",
-    Consolas: "Source Code Pro",
-  };
+  const fontBaseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, "");
+  const fontFaceCSS = generateFontFaceCSS(fontBaseUrl);
 
-  const fontsToLoad = [f.heading, f.body, f.mono]
-    .map((fn) => googleFontMap[fn] || fn)
-    .filter((fn, i, arr) => arr.indexOf(fn) === i)
-    .map((fn) => fn.replace(/ /g, "+"))
-    .join("&family=");
+  const headingFont = getFontName(f.heading);
+  const bodyFont = getFontName(f.body);
+  const monoFont = getFontName(f.mono);
 
   const pageStyles = `
     @page {
@@ -528,13 +524,13 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
       margin: 25mm 20mm 25mm 20mm;
       @top-center {
         content: "${escapedTitle}";
-        font-family: "${f.body}", Carlito, sans-serif;
+        font-family: "${bodyFont}", sans-serif;
         font-size: 10pt;
         color: #6b7280;
       }
       @bottom-center {
         content: counter(page);
-        font-family: "${f.body}", Carlito, sans-serif;
+        font-family: "${bodyFont}", sans-serif;
         font-size: 10pt;
         color: #6b7280;
       }
@@ -549,7 +545,7 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
       background: #e5e7eb;
     }
     body {
-      font-family: "${f.heading}", serif;
+      font-family: "${headingFont}", serif;
       color: #${c.text};
     }
     .pagedjs_pages {
@@ -563,19 +559,19 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
       background: white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    h1, h2, h3, h4 { font-family: "${f.heading}", serif; color: #${c.primary}; break-after: avoid; }
+    h1, h2, h3, h4 { font-family: "${headingFont}", serif; color: #${c.primary}; break-after: avoid; }
     h1 { font-size: ${hpToPx(s.h1)}px; font-weight: 700; margin: ${twipsToPx(sp.h1Before)}px 0 ${twipsToPx(sp.h1After)}px; }
     h2 { font-size: ${hpToPx(s.h2)}px; font-weight: 600; margin: ${twipsToPx(sp.h2Before)}px 0 ${twipsToPx(sp.h2After)}px; }
     h3 { font-size: ${hpToPx(s.h3)}px; font-weight: 600; margin: ${twipsToPx(sp.h3Before)}px 0 ${twipsToPx(sp.h3After)}px; }
     h4 { font-size: ${hpToPx(s.h4)}px; font-weight: 600; margin: ${twipsToPx(sp.h4Before)}px 0 ${twipsToPx(sp.h4After)}px; }
-    p { margin: 0 0 ${twipsToPx(sp.paraAfter)}px; line-height: 1.7; font-family: "${f.body}", Carlito, sans-serif; font-size: ${hpToPx(s.body)}px; }
-    ul, ol { margin: 0 0 ${twipsToPx(sp.paraAfter)}px 1.5rem; font-family: "${f.body}", Carlito, sans-serif; font-size: ${hpToPx(s.body)}px; }
+    p { margin: 0 0 ${twipsToPx(sp.paraAfter)}px; line-height: 1.7; font-family: "${bodyFont}", sans-serif; font-size: ${hpToPx(s.body)}px; }
+    ul, ol { margin: 0 0 ${twipsToPx(sp.paraAfter)}px 1.5rem; font-family: "${bodyFont}", sans-serif; font-size: ${hpToPx(s.body)}px; }
     li { margin: 0.25rem 0; }
     pre { break-inside: avoid; padding: 1rem; border-radius: 0.5rem; margin: 0.75rem 0; background: #${c.codeBg}; border: 1px solid #${c.codeBorder}; overflow-x: auto; }
     pre code { background: transparent !important; padding: 0; }
-    code { font-family: "${f.mono}", "Source Code Pro", monospace; font-size: ${hpToPx(s.mono)}px; }
+    code { font-family: "${monoFont}", monospace; font-size: ${hpToPx(s.mono)}px; }
     p code { background: #${c.codeBg}; padding: 0.125rem 0.375rem; border-radius: 0.25rem; border: 1px solid #${c.codeBorder}; }
-    table { break-inside: avoid; border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-family: "${f.body}", Carlito, sans-serif; font-size: ${hpToPx(s.table)}px; }
+    table { break-inside: avoid; border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-family: "${bodyFont}", sans-serif; font-size: ${hpToPx(s.table)}px; }
     th, td { padding: 0.625rem 0.75rem; text-align: left; border: 1px solid #${c.tableBorder}; }
     th { background: #${c.tableHeader}; }
     hr { margin: 1.5rem 0; border: none; height: 2px; background: #${c.muted}; }
@@ -592,9 +588,7 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=${fontsToLoad}:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>${fontFaceCSS}</style>
   <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
   <style>${pageStyles}</style>
