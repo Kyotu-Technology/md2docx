@@ -15,6 +15,7 @@ import { saveTemplate, generateTemplateId } from "./storage.js";
 import { getTheme } from "../themes/index.js";
 import { extractStylesFromDocx } from "./docx-extractor.js";
 import { escapeHtml } from "../utils.js";
+import { toast, confirm } from "../notifications/index.js";
 
 let modal = null;
 let onThemeChange = null;
@@ -299,7 +300,13 @@ async function exportTemplate(id) {
 }
 
 async function deleteTemplateWithConfirm(id, name) {
-  if (!confirm(`Delete template "${name}"? This action cannot be undone.`)) return;
+  const confirmed = await confirm({
+    title: "Delete template?",
+    message: `Delete "${name}"? This action cannot be undone.`,
+    confirmText: "Delete",
+    confirmStyle: "danger",
+  });
+  if (!confirmed) return;
 
   await deleteUserTemplate(id);
   await renderTemplateList();
@@ -330,7 +337,7 @@ async function handleImport(e) {
 
     const formatResult = validateImportFormat(data);
     if (!formatResult.valid) {
-      alert(`Import failed: ${formatResult.errors.join(", ")}`);
+      toast.error(`Import failed: ${formatResult.errors.join(", ")}`);
       return;
     }
 
@@ -352,12 +359,12 @@ async function handleImport(e) {
     if (imported > 0) {
       await renderTemplateList();
       await refreshThemeSelect();
-      alert(`Successfully imported ${imported} template(s)`);
+      toast.success(`Successfully imported ${imported} template(s)`);
     } else {
-      alert("No valid templates found in the file");
+      toast.warning("No valid templates found in the file");
     }
   } catch (err) {
-    alert(`Import failed: ${err.message}`);
+    toast.error(`Import failed: ${err.message}`);
   }
 
   e.target.value = "";
@@ -543,7 +550,7 @@ async function handleImportDocx(e) {
       await refreshThemeSelect();
     });
   } catch (err) {
-    alert(`Failed to extract styles: ${err.message}`);
+    toast.error(`Failed to extract styles: ${err.message}`);
     await renderTemplateList();
   }
 
@@ -553,7 +560,7 @@ async function handleImportDocx(e) {
 async function handleExportAll() {
   const templates = await getUserTemplates();
   if (templates.length === 0) {
-    alert("No templates to export");
+    toast.warning("No templates to export");
     return;
   }
 

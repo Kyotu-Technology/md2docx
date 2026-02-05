@@ -12,6 +12,7 @@ import { parseMarkdown, parseBodyToElements } from "../parser.js";
 import { EXAMPLE_MD } from "../main.js";
 import { renderPreview } from "../preview-renderer.js";
 import { escapeHtml } from "../utils.js";
+import { toast, confirm } from "../notifications/index.js";
 
 function sanitizeTemplate(parsed, base) {
   const result = structuredClone(base);
@@ -1088,13 +1089,13 @@ function updatePreview() {
 
 async function handleSave() {
   if (!currentTemplate.name?.trim()) {
-    alert("Please enter a template name");
+    toast.warning("Please enter a template name");
     return;
   }
 
   const validation = validateTemplate(currentTemplate);
   if (!validation.valid) {
-    alert(`Validation errors:\n${validation.errors.slice(0, 5).join("\n")}`);
+    toast.error(`Validation errors: ${validation.errors.slice(0, 3).join(", ")}`);
     return;
   }
 
@@ -1105,12 +1106,18 @@ async function handleSave() {
       onSaveCallback(currentTemplate);
     }
   } catch (err) {
-    alert(`Failed to save: ${err.message}`);
+    toast.error(`Failed to save: ${err.message}`);
   }
 }
 
-function handleCancel() {
-  if (confirm("Discard unsaved changes?")) {
+async function handleCancel() {
+  const confirmed = await confirm({
+    title: "Discard changes?",
+    message: "You have unsaved changes that will be lost.",
+    confirmText: "Discard",
+    confirmStyle: "danger",
+  });
+  if (confirmed) {
     closeTemplateEditor();
     if (onSaveCallback) {
       onSaveCallback(null);
