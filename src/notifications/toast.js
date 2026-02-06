@@ -1,3 +1,5 @@
+import { escapeHtml } from "../utils.js";
+
 let container = null;
 const TOAST_DURATION = 4000;
 const ANIMATION_DURATION = 200;
@@ -92,12 +94,6 @@ function dismiss(toast) {
   setTimeout(() => {
     toast.remove();
   }, ANIMATION_DURATION);
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 export const toast = {
