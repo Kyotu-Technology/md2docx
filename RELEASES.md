@@ -1,5 +1,25 @@
 # Releases
 
+## 1.2.0
+
+### New features
+- **Custom fonts in PDF** — PDF export now uses theme fonts (heading, body, mono) instead of hardcoded Roboto. Fonts are lazy-loaded as TTF on first PDF export.
+- **Proper syntax highlighting in PDF** — Code blocks in PDF now use highlight.js (190+ languages) instead of naive regex patterns. Consistent with DOCX and HTML output.
+- **Unicode symbol support** — Arrows, geometric shapes, and dingbats render correctly in PDF via Noto Emoji font.
+- **Configurable PDF header** — Logo position (left/right), document title display, and custom logo sizing.
+
+### Improvements
+- **PDF theme adapter** — PDF renderer now uses `pdfThemeAdapter()` pattern consistent with DOCX renderer. Explicit font/size on every element eliminates style inheritance issues.
+- **PDF footer separator** — Footer parts joined with middle dot (·) instead of dash.
+- **HR width** — Horizontal rules now calculated from page dimensions instead of hardcoded width.
+
+### Fixes
+- **Inline italic parsing** — Single `*italic*` no longer incorrectly matches inside `**bold**` or `***boldItalic***` markers.
+- **Inline match priority** — When multiple patterns match at the same position, longer match is now preferred.
+- **Nested code highlighting** — highlight.js nested `<span>` elements now parsed correctly via DOM walker instead of flat regex.
+
+---
+
 ## 1.1.1
 
 ### Fixes

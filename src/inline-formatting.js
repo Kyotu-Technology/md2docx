@@ -6,7 +6,7 @@
 export const INLINE_PATTERNS = [
   { regex: /\*\*\*(.+?)\*\*\*/g, type: "boldItalic" },
   { regex: /\*\*(.+?)\*\*/g, type: "bold" },
-  { regex: /\*(.+?)\*/g, type: "italic" },
+  { regex: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, type: "italic" },
   { regex: /_(.+?)_/g, type: "italic" },
   { regex: /`(.+?)`/g, type: "code" },
   { regex: /\[(.+?)\]\((.+?)\)/g, type: "link" },
@@ -35,7 +35,7 @@ export function parseInlineSegments(text) {
     }
   }
 
-  allMatches.sort((a, b) => a.start - b.start);
+  allMatches.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
   const filtered = [];
   let lastEnd = 0;
   for (const m of allMatches) {

@@ -35,10 +35,29 @@ function getTokenType(classes) {
   return "default";
 }
 
-export function highlightCode(code, language, syntaxColors, fontMono, sizeMono) {
-  const { TextRun } = window.docx;
-  const syntax = syntaxColors;
+function parseHljsHtml(html) {
+  const container = document.createElement("span");
+  container.innerHTML = html;
+  const tokens = [];
 
+  function walk(node, parentClass) {
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent;
+        if (text) {
+          tokens.push({ text, tokenType: parentClass ? getTokenType(parentClass) : "default" });
+        }
+      } else if (child.nodeType === Node.ELEMENT_NODE && child.tagName === "SPAN") {
+        walk(child, child.className || parentClass);
+      }
+    }
+  }
+
+  walk(container, null);
+  return tokens.length > 0 ? tokens : [{ text: "", tokenType: "default" }];
+}
+
+export function highlightCodeTokens(code, language) {
   let highlighted;
   try {
     highlighted =
@@ -46,41 +65,25 @@ export function highlightCode(code, language, syntaxColors, fontMono, sizeMono) 
         ? window.hljs.highlight(code, { language })
         : window.hljs.highlightAuto(code);
   } catch {
-    return code
-      .split("\n")
-      .map((line) => [
-        new TextRun({ text: line, font: fontMono, size: sizeMono, color: syntax.default }),
-      ]);
+    return code.split("\n").map((line) => [{ text: line, tokenType: "default" }]);
   }
+  return highlighted.value.split("\n").map(parseHljsHtml);
+}
 
-  return highlighted.value.split("\n").map((lineHtml) => {
-    const runs = [];
-    const regex = /<span class="([^"]+)">([^<]*)<\/span>|([^<]+)/g;
-    let match;
-
-    while ((match = regex.exec(lineHtml)) !== null) {
-      const text = (match[2] || match[3] || "")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
-        .replace(/&quot;/g, '"')
-        .replace(/&#x27;/g, "'")
-        .replace(/&#39;/g, "'")
-        .replace(/&apos;/g, "'");
-      if (text) {
-        const tokenType = match[1] ? getTokenType(match[1]) : "default";
-        runs.push(
-          new TextRun({
-            text,
-            font: fontMono,
-            size: sizeMono,
-            color: syntax[tokenType] || syntax.default,
-          })
-        );
-      }
-    }
-    return runs.length > 0 ? runs : [new TextRun({ text: "", font: fontMono, size: sizeMono })];
-  });
+export function highlightCode(code, language, syntaxColors, fontMono, sizeMono) {
+  const { TextRun } = window.docx;
+  const lines = highlightCodeTokens(code, language);
+  return lines.map((tokens) =>
+    tokens.map(
+      ({ text, tokenType }) =>
+        new TextRun({
+          text,
+          font: fontMono,
+          size: sizeMono,
+          color: syntaxColors[tokenType] || syntaxColors.default,
+        })
+    )
+  );
 }
 
 export function highlightCodeHtml(code, language) {
