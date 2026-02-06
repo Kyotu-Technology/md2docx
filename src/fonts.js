@@ -123,6 +123,13 @@ export const FONTS = {
       bold: "courier-prime-v11-latin_latin-ext-700.woff2",
     },
   },
+  "noto-emoji": {
+    name: "Noto Emoji",
+    category: "sans-serif",
+    files: {
+      regular: "noto-emoji-v62-emoji-regular.woff2",
+    },
+  },
 };
 
 export const FONT_ALIASES = {
