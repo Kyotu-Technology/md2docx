@@ -1,3 +1,5 @@
+import { escapeHtml } from "../utils.js";
+
 let activeModal = null;
 
 export function confirm({
@@ -88,10 +90,4 @@ export function confirm({
 
     modal.querySelector("#confirmOk").focus();
   });
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }
