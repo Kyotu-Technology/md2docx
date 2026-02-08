@@ -28,6 +28,19 @@ bun run dev
 
 Open [localhost:3000](http://localhost:3000)
 
+## Testing
+
+End-to-end tests using Playwright + BDD (Gherkin syntax):
+
+```bash
+bun run test              # headless (xvfb)
+bun run test:headed       # visible browser
+bun run test:ui           # Playwright UI mode
+bun run test:update-snapshots  # update visual baselines
+```
+
+21 scenarios covering export quality (DOCX/HTML), live preview rendering, UI notifications, and visual regression.
+
 ## Contributing
 
 1. Fork → 2. Branch → 3. PR

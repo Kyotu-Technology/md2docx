@@ -9,11 +9,22 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
-    "format:check": "prettier --check src/"
+    "format:check": "prettier --check src/",
+    "test": "bunx bddgen && xvfb-run bunx playwright test",
+    "test:headed": "bunx bddgen && bunx playwright test --headed",
+    "test:ui": "bunx bddgen && bunx playwright test --ui",
+    "test:update-snapshots": "bunx bddgen && xvfb-run bunx playwright test --update-snapshots"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "cheerio": "^1.2.0",
     "eslint": "^9.39.2",
+    "fast-xml-parser": "^5.3.4",
     "globals": "^17.3.0",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^2.4.5",
+    "playwright-bdd": "^8.4.2",
     "prettier": "^3.8.1"
   },
   "keywords": [
