@@ -13,6 +13,7 @@ Convert Markdown to professional DOCX, PDF, and HTML — entirely in your browse
 Write Markdown, get polished documents. Live preview, syntax highlighting, Mermaid diagrams, custom templates.
 
 - **Export** to DOCX, PDF, or standalone HTML
+- **Format** with floating toolbar — bold, italic, code, links (Ctrl+B/I/E/K)
 - **Customize** with themes or create your own templates
 - **Search** semantically with Ctrl+K (AI-powered, runs locally)
 - **Works offline** — everything runs in your browser
@@ -39,7 +40,7 @@ bun run test:ui           # Playwright UI mode
 bun run test:update-snapshots  # update visual baselines
 ```
 
-21 scenarios covering export quality (DOCX/HTML), live preview rendering, UI notifications, and visual regression.
+28 scenarios covering export quality (DOCX/HTML), live preview rendering, formatting toolbar, UI notifications, and visual regression.
 
 ## Contributing
 

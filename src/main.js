@@ -12,6 +12,7 @@ import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
 import { toast } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
+import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -704,7 +705,11 @@ markdownInput.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "k") {
     e.preventDefault();
-    openSearch();
+    if (document.activeElement === markdownInput && hasTextSelection(markdownInput)) {
+      applyLink(markdownInput);
+    } else {
+      openSearch();
+    }
   }
 });
 
@@ -728,6 +733,7 @@ readabilityMetrics.addEventListener("click", (e) => {
 });
 
 initScrollSync(markdownInput, preview);
+initFormattingToolbar(markdownInput);
 updateSyncToggleUI();
 
 function updateSyncToggleUI() {
