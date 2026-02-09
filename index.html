@@ -299,6 +299,57 @@
         border-top: 1px solid #e5e7eb;
         padding-top: 8px;
       }
+
+      .formatting-toolbar {
+        position: fixed;
+        z-index: 150;
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 4px;
+        display: flex;
+        gap: 2px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        transform: translateY(4px);
+        transition:
+          opacity 0.15s,
+          transform 0.15s;
+        pointer-events: none;
+      }
+      .formatting-toolbar.visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      .formatting-toolbar button {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: #d1d5db;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.1s;
+      }
+      .formatting-toolbar button:hover {
+        background: #374151;
+        color: white;
+      }
+      .formatting-toolbar button.active {
+        background: #f97c00;
+        color: white;
+      }
+      .formatting-toolbar-sep {
+        width: 1px;
+        background: #374151;
+        margin: 4px 2px;
+      }
     </style>
   </head>
   <body class="h-full flex flex-col bg-gray-50 font-sans">
