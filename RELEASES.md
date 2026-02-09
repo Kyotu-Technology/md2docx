@@ -4,6 +4,7 @@
 
 ### New features
 - **PDF overhaul** — Custom theme fonts (instead of hardcoded Roboto), proper hljs syntax highlighting, Unicode symbol support via Noto Emoji, configurable header with logo positioning and document title.
+- **Formatting toolbar** — Floating bubble menu appears on text selection. Bold, italic, code, and link formatting with one click. Keyboard shortcuts: Ctrl+B, Ctrl+I, Ctrl+E, Ctrl+K. Smart toggle detects existing formatting including bold+italic combinations (`***text***`).
 
 ### Fixes
 - **Inline formatting** — `*italic*` no longer matches inside `**bold**`, longer matches preferred at same position.
