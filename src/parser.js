@@ -1,10 +1,28 @@
+function cleanContentOutsideCodeBlocks(content) {
+  const lines = content.split("\n");
+  let inCodeBlock = false;
+  return lines
+    .map((line) => {
+      if (line.startsWith("```")) {
+        inCodeBlock = !inCodeBlock;
+        return line;
+      }
+      if (inCodeBlock) return line;
+      line = line
+        .replace(/&nbsp;/g, " ")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/\u2014/g, "-")
+        .replace(/\u2013/g, "-");
+      while (/<[^>]+>/.test(line)) {
+        line = line.replace(/<[^>]+>/g, "");
+      }
+      return line;
+    })
+    .join("\n");
+}
+
 export function parseMarkdown(content) {
-  content = content
-    .replace(/&nbsp;/g, " ")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/—/g, "-")
-    .replace(/–/g, "-");
+  content = cleanContentOutsideCodeBlocks(content);
 
   const lines = content.split("\n");
   let metadata = {};

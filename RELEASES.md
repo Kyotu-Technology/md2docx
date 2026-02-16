@@ -8,6 +8,7 @@
 ### Fixes
 - **Inline formatting** — `*italic*` no longer matches inside `**bold**`, longer matches preferred at same position.
 - **Code highlighting** — Nested hljs `<span>` elements parsed correctly (DOM walker replaces regex).
+- **HTML cleanup corrupting code blocks** — Parser's HTML-stripping regexes now skip fenced code blocks. Fixes missing paragraphs (bare `<` causing cross-line deletion) and broken Mermaid diagrams (HTML labels like `<b>`, `<br/>` being stripped).
 
 ---
 
