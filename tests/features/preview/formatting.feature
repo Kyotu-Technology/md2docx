@@ -53,3 +53,17 @@ Feature: Text formatting in preview
     Then the preview should contain a "table" element
     And the "table" should have 3 "tr" children
     And the first row should contain "th" cells
+
+  Scenario: Table preserves empty cells
+    Given the editor contains:
+      """
+      | Name  | Value | Notes |
+      | ----- | ----- | ----- |
+      | Alpha | 100   |       |
+      | Beta  |       | ok    |
+      """
+    When the preview renders
+    Then the preview should contain a "table" element
+    And the table should have 3 columns
+    And row 2 should have 3 cells
+    And row 3 should have 3 cells
