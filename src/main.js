@@ -13,6 +13,9 @@ import { escapeHtml } from "./utils.js";
 import { toast } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
+import { getAllDocuments, saveDocument, deleteDocument, setMainDocument, migrateFromLocalStorage } from "./file-explorer/storage.js";
+import { resolveIncludes } from "./file-explorer/resolver.js";
+import { initFileExplorer, refreshFileList, toggleExplorer, isExplorerOpen } from "./file-explorer/ui.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -128,9 +131,13 @@ const jumpToBtn = $("jumpToBtn");
 const modeContinuous = $("modeContinuous");
 const modePages = $("modePages");
 const manageTemplatesBtn = $("manageTemplatesBtn");
+const explorerToggle = $("explorerToggle");
+const currentDocName = $("currentDocName");
 
 let customLogoDataUrl = null;
 let previewMode = "continuous";
+let currentDocId = null;
+let allDocuments = [];
 
 const exportOptions = {
   showTitlePage: true,
@@ -324,15 +331,100 @@ async function initThemeSelect() {
   } catch {}
 }
 
-initThemeSelect().then(() => {
-  try {
-    const savedContent = localStorage.getItem("md2docx-content");
-    if (savedContent) {
-      markdownInput.value = savedContent;
-      updatePreview();
-    }
-  } catch {}
-});
+async function initDocuments() {
+  await migrateFromLocalStorage();
+  allDocuments = await getAllDocuments();
+
+  if (allDocuments.length === 0) {
+    await saveDocument({ name: "main.md", content: "", isMain: true });
+    allDocuments = await getAllDocuments();
+  }
+
+  const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
+  currentDocId = mainDoc.id;
+  markdownInput.value = mainDoc.content;
+  updateCurrentDocLabel();
+  refreshFileList(allDocuments, currentDocId);
+  updatePreview();
+}
+
+function updateCurrentDocLabel() {
+  const doc = allDocuments.find((d) => d.id === currentDocId);
+  if (currentDocName && doc) {
+    currentDocName.textContent = doc.name;
+    currentDocName.title = doc.name;
+  }
+}
+
+async function switchDocument(docId) {
+  if (docId === currentDocId) return;
+
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  if (currentDoc) {
+    currentDoc.content = markdownInput.value;
+    await saveDocument(currentDoc);
+  }
+
+  const nextDoc = allDocuments.find((d) => d.id === docId);
+  if (!nextDoc) return;
+
+  currentDocId = docId;
+  markdownInput.value = nextDoc.content;
+  updateCurrentDocLabel();
+  refreshFileList(allDocuments, currentDocId);
+  updatePreview();
+}
+
+async function addDocument() {
+  const name = prompt("Document name:", "new-doc.md");
+  if (!name?.trim()) return;
+
+  const doc = await saveDocument({ name: name.trim(), content: "", isMain: false });
+  allDocuments = await getAllDocuments();
+  refreshFileList(allDocuments, currentDocId);
+  await switchDocument(doc.id);
+}
+
+async function removeDocument(docId) {
+  const doc = allDocuments.find((d) => d.id === docId);
+  if (!doc || doc.isMain) return;
+
+  const ok = confirm(`Delete "${doc.name}"?`);
+  if (!ok) return;
+
+  await deleteDocument(docId);
+  allDocuments = await getAllDocuments();
+
+  if (currentDocId === docId) {
+    const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
+    currentDocId = mainDoc.id;
+    markdownInput.value = mainDoc.content;
+    updateCurrentDocLabel();
+    updatePreview();
+  }
+
+  refreshFileList(allDocuments, currentDocId);
+}
+
+async function renameDocument(docId, newName) {
+  const doc = allDocuments.find((d) => d.id === docId);
+  if (!doc) return;
+
+  doc.name = newName;
+  await saveDocument(doc);
+  allDocuments = await getAllDocuments();
+  updateCurrentDocLabel();
+  refreshFileList(allDocuments, currentDocId);
+}
+
+async function changeMainDocument(docId) {
+  await setMainDocument(docId);
+  allDocuments = await getAllDocuments();
+  refreshFileList(allDocuments, currentDocId);
+  updatePreview();
+}
+
+initThemeSelect().then(() => initDocuments());
 
 manageTemplatesBtn?.addEventListener("click", () => {
   openTemplateManager((selectedId) => {
@@ -454,9 +546,11 @@ async function updatePreview() {
   const md = markdownInput.value;
   charCount.textContent = `${md.length} chars`;
 
-  try {
-    localStorage.setItem("md2docx-content", md);
-  } catch {}
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  if (currentDoc) {
+    currentDoc.content = md;
+    saveDocument(currentDoc);
+  }
 
   if (!md.trim()) {
     preview.innerHTML = emptyStateHTML;
@@ -467,7 +561,13 @@ async function updatePreview() {
     return;
   }
 
-  const { metadata, body } = parseMarkdown(md);
+  let previewMd = md;
+  if (currentDoc?.isMain && allDocuments.length > 1) {
+    const docsMap = new Map(allDocuments.map((d) => [d.name, d.content]));
+    previewMd = resolveIncludes(md, docsMap);
+  }
+
+  const { metadata, body } = parseMarkdown(previewMd);
   const elements = parseBodyToElements(body);
   const themeId = themeSelect.value;
   const theme = await getThemeOrTemplate(themeId);
@@ -607,16 +707,23 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
 }
 
 async function generateDocument(format = "docx") {
-  const md = markdownInput.value;
-  if (!md.trim()) {
-    toast.warning("Please paste or load Markdown content!");
+  const mainDoc = allDocuments.find((d) => d.isMain);
+  const mainContent = mainDoc ? mainDoc.content : markdownInput.value;
+
+  if (!mainContent.trim()) {
+    toast.warning("Main document is empty!");
     return;
   }
 
   generateBtn.disabled = true;
   try {
     showStatus("Parsing...");
-    const { metadata, body } = parseMarkdown(md);
+    let exportMd = mainContent;
+    if (allDocuments.length > 1) {
+      const docsMap = new Map(allDocuments.map((d) => [d.name, d.content]));
+      exportMd = resolveIncludes(mainContent, docsMap);
+    }
+    const { metadata, body } = parseMarkdown(exportMd);
     const elements = parseBodyToElements(body);
     const themeId = themeSelect.value;
     const filename = metadata.title || "document";
@@ -664,9 +771,17 @@ function loadFile(file) {
     (file.name.endsWith(".md") || file.name.endsWith(".txt") || file.type === "text/plain")
   ) {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      markdownInput.value = e.target.result;
-      updatePreview();
+    reader.onload = async (e) => {
+      const content = e.target.result;
+      if (isExplorerOpen()) {
+        const doc = await saveDocument({ name: file.name, content, isMain: false });
+        allDocuments = await getAllDocuments();
+        refreshFileList(allDocuments, currentDocId);
+        await switchDocument(doc.id);
+      } else {
+        markdownInput.value = content;
+        updatePreview();
+      }
     };
     reader.readAsText(file);
   }
@@ -674,6 +789,8 @@ function loadFile(file) {
 
 loadExample.addEventListener("click", () => {
   markdownInput.value = EXAMPLE_MD;
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  if (currentDoc) currentDoc.content = EXAMPLE_MD;
   updatePreview();
 });
 fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));
@@ -788,3 +905,20 @@ modeContinuous.addEventListener("click", () => setPreviewMode("continuous"));
 modePages.addEventListener("click", () => setPreviewMode("pages"));
 
 updatePreviewModeUI();
+
+initFileExplorer($("explorerPanel"), {
+  onSelect: (id) => switchDocument(id),
+  onAdd: () => addDocument(),
+  onDelete: (id) => removeDocument(id),
+  onRename: (id, name) => renameDocument(id, name),
+  onSetMain: (id) => changeMainDocument(id),
+});
+
+explorerToggle?.addEventListener("click", () => toggleExplorer());
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+    e.preventDefault();
+    toggleExplorer();
+  }
+});
