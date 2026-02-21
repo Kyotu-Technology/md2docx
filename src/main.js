@@ -917,7 +917,7 @@ initFileExplorer($("explorerPanel"), {
 explorerToggle?.addEventListener("click", () => toggleExplorer());
 
 document.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+  if ((e.ctrlKey || e.metaKey) && e.key === "b" && document.activeElement !== markdownInput) {
     e.preventDefault();
     toggleExplorer();
   }
