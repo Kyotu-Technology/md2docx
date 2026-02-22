@@ -16,6 +16,7 @@ import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting
 import { getAllDocuments, saveDocument, deleteDocument, setMainDocument, migrateFromLocalStorage } from "./file-explorer/storage.js";
 import { resolveIncludes } from "./file-explorer/resolver.js";
 import { initFileExplorer, refreshFileList, toggleExplorer, isExplorerOpen } from "./file-explorer/ui.js";
+import { initIncludeAutocomplete } from "./file-explorer/autocomplete.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -375,8 +376,7 @@ async function switchDocument(docId) {
   updatePreview();
 }
 
-async function addDocument() {
-  const name = prompt("Document name:", "new-doc.md");
+async function addDocument(name) {
   if (!name?.trim()) return;
 
   const doc = await saveDocument({ name: name.trim(), content: "", isMain: false });
@@ -950,6 +950,7 @@ readabilityMetrics.addEventListener("click", (e) => {
 
 initScrollSync(markdownInput, preview);
 initFormattingToolbar(markdownInput);
+initIncludeAutocomplete(markdownInput, () => allDocuments);
 updateSyncToggleUI();
 
 function updateSyncToggleUI() {
@@ -1007,7 +1008,7 @@ updatePreviewModeUI();
 
 initFileExplorer($("explorerPanel"), {
   onSelect: (id) => switchDocument(id),
-  onAdd: () => addDocument(),
+  onAdd: (name) => addDocument(name),
   onDelete: (id) => removeDocument(id),
   onRename: (id, name) => renameDocument(id, name),
   onSetMain: (id) => changeMainDocument(id),

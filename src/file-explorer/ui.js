@@ -11,7 +11,11 @@ export function initFileExplorer(container, cbs) {
   callbacks = cbs;
 
   container.querySelector("#addDocBtn").addEventListener("click", () => {
-    callbacks.onAdd?.();
+    startInlineAdd();
+  });
+
+  container.querySelector("#explorerClose")?.addEventListener("click", () => {
+    toggleExplorer(false);
   });
 
   container.addEventListener("dragover", (e) => {
@@ -44,8 +48,8 @@ export function initFileExplorer(container, cbs) {
   } catch {}
 
   if (_isOpen) {
-    explorerPanel.style.width = "220px";
-    explorerPanel.style.minWidth = "220px";
+    explorerPanel.style.width = "200px";
+    explorerPanel.style.minWidth = "200px";
   }
 }
 
@@ -151,12 +155,60 @@ function startRename(itemEl, doc) {
   });
 }
 
+function startInlineAdd() {
+  if (!fileListEl || fileListEl.querySelector(".inline-rename")) return;
+
+  const item = document.createElement("div");
+  item.className = "explorer-item";
+
+  const icon = document.createElement("span");
+  icon.style.cssText = "flex-shrink:0;opacity:0.4;color:#9ca3af;";
+  icon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "inline-rename";
+  const defaultName = "new-doc.md";
+  input.value = defaultName;
+
+  item.appendChild(icon);
+  item.appendChild(input);
+  fileListEl.prepend(item);
+
+  input.focus();
+  const dotIdx = defaultName.lastIndexOf(".");
+  input.setSelectionRange(0, dotIdx > 0 ? dotIdx : defaultName.length);
+
+  let done = false;
+  function finish(accept) {
+    if (done) return;
+    done = true;
+    const name = input.value.trim();
+    item.remove();
+    if (accept && name) {
+      callbacks.onAdd?.(name);
+    }
+  }
+
+  input.addEventListener("blur", () => finish(true));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.blur();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      finish(false);
+    }
+  });
+}
+
 export function toggleExplorer(forceState) {
   _isOpen = forceState !== undefined ? forceState : !_isOpen;
 
   if (_isOpen) {
-    explorerPanel.style.width = "220px";
-    explorerPanel.style.minWidth = "220px";
+    explorerPanel.style.width = "200px";
+    explorerPanel.style.minWidth = "200px";
   } else {
     explorerPanel.style.width = "0";
     explorerPanel.style.minWidth = "0";
@@ -168,6 +220,7 @@ export function toggleExplorer(forceState) {
 
   const toggleBtn = document.getElementById("explorerToggle");
   if (toggleBtn) {
+    toggleBtn.style.opacity = _isOpen ? "1" : "";
     toggleBtn.style.color = _isOpen ? "#f97c00" : "";
   }
 

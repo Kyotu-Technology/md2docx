@@ -30,10 +30,11 @@ When("I press Ctrl+B on the document", async ({ page }) => {
 });
 
 When("I add a new document named {string}", async ({ page }, name) => {
-  page.once("dialog", async (dialog) => {
-    await dialog.accept(name);
-  });
   await page.locator("#addDocBtn").click();
+  const input = page.locator("#fileList input.inline-rename");
+  await expect(input).toBeVisible({ timeout: 2000 });
+  await input.fill(name);
+  await input.press("Enter");
   await page.waitForTimeout(300);
 });
 

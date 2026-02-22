@@ -355,9 +355,9 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        padding: 6px 12px;
+        padding: 5px 10px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 12px;
         color: #4b5563;
         transition: background 0.1s;
         position: relative;
@@ -442,6 +442,36 @@
         color: #f97c00;
         font-size: 12px;
         font-weight: 500;
+      }
+      .include-autocomplete {
+        position: fixed;
+        z-index: 200;
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 4px;
+        min-width: 180px;
+        max-width: 300px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: none;
+        font-size: 13px;
+      }
+      .include-autocomplete-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        color: #d1d5db;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .include-autocomplete-item:hover,
+      .include-autocomplete-item.selected {
+        background: #374151;
+        color: white;
       }
     </style>
   </head>
@@ -701,15 +731,22 @@
       </div>
     </header>
 
-    <main class="flex-1 flex flex-col lg:flex-row min-h-0">
-      <div id="explorerPanel" class="hidden lg:flex flex-col min-h-0 bg-gray-50 border-r border-gray-200 overflow-hidden shrink-0" style="width: 0; min-width: 0; transition: width 0.2s ease, min-width 0.2s ease;">
-        <div class="px-3 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
-          <span class="text-sm font-medium text-gray-700">Files</span>
-          <button id="addDocBtn" class="text-gray-400 hover:text-kyotu-orange transition-colors p-0.5" title="New document">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-          </button>
+    <main class="flex-1 flex flex-col lg:flex-row min-h-0 relative">
+      <div id="explorerPanel" class="hidden lg:flex flex-col min-h-0 bg-white border-r border-gray-200 overflow-hidden absolute left-0 top-0 bottom-0 z-30 shadow-lg" style="width: 0; min-width: 0; transition: width 0.2s ease, min-width 0.2s ease, box-shadow 0.2s ease;">
+        <div class="px-3 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+          <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Files</span>
+          <div class="flex items-center gap-1">
+            <button id="addDocBtn" class="text-gray-400 hover:text-kyotu-orange transition-colors p-0.5" title="New document">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+            </button>
+            <button id="explorerClose" class="text-gray-400 hover:text-gray-600 transition-colors p-0.5" title="Close (Ctrl+B)">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div id="fileList" class="flex-1 overflow-y-auto scrollbar-thin"></div>
       </div>
@@ -719,8 +756,8 @@
           class="px-4 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between shrink-0"
         >
           <div class="flex items-center gap-2">
-            <button id="explorerToggle" class="text-gray-400 hover:text-gray-600 transition-colors hidden lg:block" title="Toggle file explorer (Ctrl+B)">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button id="explorerToggle" class="opacity-50 hover:opacity-80 text-gray-500 transition-all hidden lg:block" title="Toggle file explorer (Ctrl+B)">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
               </svg>
             </button>
