@@ -167,3 +167,31 @@ Then("the include autocomplete dropdown should not be visible", async ({ page })
   const isHidden = await dropdown.evaluate((el) => !el || el.style.display === "none" || el.style.display === "");
   expect(isHidden).toBe(true);
 });
+
+When("I fill the editor with {int} lines of text", async ({ page }, lines) => {
+  const textarea = page.locator("#markdown");
+  const content = Array.from({ length: lines }, (_, i) => `Line ${i + 1}: Lorem ipsum dolor sit amet`).join("\n") + "\n";
+  await textarea.fill(content);
+  await textarea.dispatchEvent("input");
+  await page.waitForTimeout(200);
+  // Move cursor to the end so textarea is scrolled to bottom
+  await textarea.click();
+  await page.keyboard.press("Control+End");
+  await page.waitForTimeout(100);
+});
+
+Then("the autocomplete dropdown should be within the viewport", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const dd = document.querySelector(".include-autocomplete");
+    if (!dd) return { ok: false, reason: "dropdown not found" };
+    const rect = dd.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    return {
+      ok: rect.top >= 0 && rect.bottom <= vh && rect.left >= 0 && rect.right <= vw,
+      rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+      viewport: { width: vw, height: vh },
+    };
+  });
+  expect(result.ok, `Dropdown rect ${JSON.stringify(result.rect)} outside viewport ${JSON.stringify(result.viewport)}`).toBe(true);
+});

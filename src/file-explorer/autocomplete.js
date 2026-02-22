@@ -4,7 +4,7 @@ let dropdown = null;
 let selectedIndex = -1;
 let currentItems = [];
 let isVisible = false;
-let cachedCharWidth = 0;
+let mirror = null;
 
 const TRIGGER = /@include\(([^)]*$)/;
 
@@ -79,39 +79,62 @@ function checkForTrigger(textarea, getDocuments) {
   showDropdown(textarea);
 }
 
-function getCharWidth(textarea) {
-  if (cachedCharWidth > 0) return cachedCharWidth;
-  const style = window.getComputedStyle(textarea);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  ctx.font = `${style.fontSize} ${style.fontFamily}`;
-  cachedCharWidth = ctx.measureText("m").width;
-  return cachedCharWidth;
-}
+const MIRROR_PROPS = [
+  "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing",
+  "lineHeight", "textTransform", "wordSpacing", "textIndent",
+  "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+  "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+  "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "tabSize",
+];
 
 function getCursorCoords(textarea) {
+  if (!mirror) {
+    mirror = document.createElement("div");
+    mirror.style.position = "fixed";
+    mirror.style.visibility = "hidden";
+    mirror.style.overflow = "hidden";
+    mirror.style.pointerEvents = "none";
+    document.body.appendChild(mirror);
+  }
+
+  const style = window.getComputedStyle(textarea);
+  const rect = textarea.getBoundingClientRect();
+
+  for (const prop of MIRROR_PROPS) {
+    mirror.style[prop] = style[prop];
+  }
+  mirror.style.top = rect.top + "px";
+  mirror.style.left = rect.left + "px";
+  mirror.style.width = rect.width + "px";
+  mirror.style.height = rect.height + "px";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordWrap = "break-word";
+
   const value = textarea.value;
   const cursorPos = textarea.selectionStart;
   const textBefore = value.substring(0, cursorPos);
 
-  const style = window.getComputedStyle(textarea);
-  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5;
-  const paddingTop = parseFloat(style.paddingTop) || 0;
-  const paddingLeft = parseFloat(style.paddingLeft) || 0;
+  const span = document.createElement("span");
+  span.textContent = "\u200b";
 
-  const lines = textBefore.split("\n");
-  const lineNumber = lines.length - 1;
-  const lastLine = lines[lines.length - 1];
+  mirror.textContent = "";
+  mirror.appendChild(document.createTextNode(textBefore));
+  mirror.appendChild(span);
+  mirror.appendChild(document.createTextNode(value.substring(cursorPos) || "."));
 
-  const rect = textarea.getBoundingClientRect();
-  const charWidth = getCharWidth(textarea);
+  mirror.scrollTop = textarea.scrollTop;
 
-  const y = rect.top + paddingTop + (lineNumber + 1) * lineHeight - textarea.scrollTop;
-  const x = rect.left + paddingLeft + lastLine.length * charWidth;
+  const spanRect = span.getBoundingClientRect();
+  const lh = parseFloat(style.lineHeight);
+  const lineHeight = isNaN(lh) ? parseFloat(style.fontSize) * 1.5 : lh;
 
+  const x = spanRect.left;
+  const y = spanRect.top + lineHeight;
+
+  const dropdownWidth = 200;
   return {
-    x: Math.min(x, rect.right - 200),
-    y: Math.min(y, rect.bottom - 10),
+    x: Math.max(rect.left, Math.min(x, rect.right - dropdownWidth)),
+    y: Math.max(rect.top, Math.min(y, rect.bottom - 10)),
   };
 }
 

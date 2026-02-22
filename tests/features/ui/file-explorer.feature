@@ -111,3 +111,12 @@ Feature: File explorer
     Then the include autocomplete dropdown should be visible
     When I press "Escape" in the editor
     Then the include autocomplete dropdown should not be visible
+
+  Scenario: @include autocomplete is visible when typing in scrolled document
+    When I click the explorer toggle button
+    And I add a new document named "chapter1.md"
+    And I click the document "main.md" in the file list
+    And I fill the editor with 50 lines of text
+    And I type "@include(" in the editor
+    Then the include autocomplete dropdown should be visible
+    And the autocomplete dropdown should be within the viewport
