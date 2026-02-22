@@ -10,7 +10,7 @@ import { openTemplateManager } from "./template-manager/index.js";
 import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
-import { toast } from "./notifications/index.js";
+import { toast, confirm, conflictDialog } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 import { getAllDocuments, saveDocument, deleteDocument, setMainDocument, migrateFromLocalStorage } from "./file-explorer/storage.js";
@@ -389,7 +389,12 @@ async function removeDocument(docId) {
   const doc = allDocuments.find((d) => d.id === docId);
   if (!doc || doc.isMain) return;
 
-  const ok = confirm(`Delete "${doc.name}"?`);
+  const ok = await confirm({
+    title: "Delete file?",
+    message: `Delete "${doc.name}"? This action cannot be undone.`,
+    confirmText: "Delete",
+    confirmStyle: "danger",
+  });
   if (!ok) return;
 
   await deleteDocument(docId);
@@ -765,6 +770,97 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+    reader.readAsText(file);
+  });
+}
+
+function generateUniqueName(name, documents) {
+  const dotIdx = name.lastIndexOf(".");
+  const baseName = dotIdx > 0 ? name.slice(0, dotIdx) : name;
+  const ext = dotIdx > 0 ? name.slice(dotIdx) : ".md";
+  const existingNames = new Set(documents.map((d) => d.name));
+  let counter = 2;
+  let candidate = `${baseName} (${counter})${ext}`;
+  while (existingNames.has(candidate)) {
+    counter++;
+    candidate = `${baseName} (${counter})${ext}`;
+  }
+  return candidate;
+}
+
+function isValidTextFile(file) {
+  return file.name.endsWith(".md") || file.name.endsWith(".txt") || file.type === "text/plain";
+}
+
+async function handleExplorerDrop(files) {
+  const validFiles = Array.from(files).filter(isValidTextFile);
+
+  if (validFiles.length === 0) {
+    toast.warning("No Markdown or text files found");
+    return;
+  }
+
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  if (currentDoc) {
+    currentDoc.content = markdownInput.value;
+    await saveDocument(currentDoc);
+  }
+
+  let added = 0;
+  let replaced = 0;
+  let skipped = 0;
+  let lastDocId = null;
+
+  for (const file of validFiles) {
+    const content = await readFileAsText(file);
+    const existingDoc = allDocuments.find((d) => d.name === file.name);
+
+    if (existingDoc) {
+      const action = await conflictDialog({
+        title: "File already exists",
+        message: `A file named "${file.name}" already exists. What would you like to do?`,
+      });
+
+      if (action === "replace") {
+        existingDoc.content = content;
+        await saveDocument(existingDoc);
+        allDocuments = await getAllDocuments();
+        lastDocId = existingDoc.id;
+        replaced++;
+      } else if (action === "keep-both") {
+        const newName = generateUniqueName(file.name, allDocuments);
+        const doc = await saveDocument({ name: newName, content, isMain: false });
+        allDocuments = await getAllDocuments();
+        lastDocId = doc.id;
+        added++;
+      } else {
+        skipped++;
+      }
+    } else {
+      const doc = await saveDocument({ name: file.name, content, isMain: false });
+      allDocuments = await getAllDocuments();
+      lastDocId = doc.id;
+      added++;
+    }
+  }
+
+  if (lastDocId) {
+    refreshFileList(allDocuments, currentDocId);
+    await switchDocument(lastDocId);
+  }
+
+  const parts = [];
+  if (added > 0) parts.push(`${added} added`);
+  if (replaced > 0) parts.push(`${replaced} replaced`);
+  if (skipped > 0) parts.push(`${skipped} skipped`);
+  if (parts.length > 0) toast.success(`Files: ${parts.join(", ")}`);
+}
+
 function loadFile(file) {
   if (
     file &&
@@ -773,15 +869,18 @@ function loadFile(file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const content = e.target.result;
+      markdownInput.value = content;
+
       if (isExplorerOpen()) {
-        const doc = await saveDocument({ name: file.name, content, isMain: false });
-        allDocuments = await getAllDocuments();
-        refreshFileList(allDocuments, currentDocId);
-        await switchDocument(doc.id);
-      } else {
-        markdownInput.value = content;
-        updatePreview();
+        const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+        if (currentDoc) {
+          currentDoc.content = content;
+          await saveDocument(currentDoc);
+        }
+        toast.success(`Content of "${currentDoc?.name || "document"}" updated`);
       }
+
+      updatePreview();
     };
     reader.readAsText(file);
   }
@@ -912,6 +1011,7 @@ initFileExplorer($("explorerPanel"), {
   onDelete: (id) => removeDocument(id),
   onRename: (id, name) => renameDocument(id, name),
   onSetMain: (id) => changeMainDocument(id),
+  onDrop: (files) => handleExplorerDrop(files),
 });
 
 explorerToggle?.addEventListener("click", () => toggleExplorer());

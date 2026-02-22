@@ -47,13 +47,14 @@ When("I delete the document {string}", async ({ page }, name) => {
   const item = page.locator("#fileList .explorer-item", { hasText: name });
   await item.hover();
 
-  page.once("dialog", async (dialog) => {
-    await dialog.accept();
-  });
-
   const deleteBtn = item.locator(".item-actions button");
   await deleteBtn.click();
-  await page.waitForTimeout(300);
+
+  const confirmModal = page.locator("#confirmModal");
+  await confirmModal.waitFor({ state: "visible", timeout: 3000 });
+  await page.locator("#confirmOk").click();
+  await confirmModal.waitFor({ state: "hidden", timeout: 3000 });
+  await page.waitForTimeout(200);
 });
 
 When("I rename the document {string} to {string}", async ({ page }, oldName, newName) => {

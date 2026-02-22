@@ -14,6 +14,31 @@ export function initFileExplorer(container, cbs) {
     callbacks.onAdd?.();
   });
 
+  container.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    container.classList.add("explorer-dragover");
+  });
+
+  container.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    container.classList.add("explorer-dragover");
+  });
+
+  container.addEventListener("dragleave", (e) => {
+    if (!container.contains(e.relatedTarget)) {
+      container.classList.remove("explorer-dragover");
+    }
+  });
+
+  container.addEventListener("drop", (e) => {
+    e.preventDefault();
+    container.classList.remove("explorer-dragover");
+    if (e.dataTransfer.files.length > 0) {
+      callbacks.onDrop?.(e.dataTransfer.files);
+    }
+  });
+
   try {
     _isOpen = localStorage.getItem("md2docx-explorer-open") === "true";
   } catch {}
