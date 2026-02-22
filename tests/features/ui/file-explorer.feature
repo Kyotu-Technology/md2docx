@@ -81,3 +81,33 @@ Feature: File explorer
   Scenario: Main document star indicator is visible
     When I click the explorer toggle button
     Then the document "main.md" should have the main star active
+
+  Scenario: @include autocomplete shows available files
+    When I click the explorer toggle button
+    And I add a new document named "chapter1.md"
+    And I click the document "main.md" in the file list
+    And I type "@include(" in the editor
+    Then the include autocomplete dropdown should be visible
+    And the autocomplete should list "chapter1.md"
+    When I press "Enter" in the editor
+    Then the editor value should contain "@include(chapter1.md)"
+    And the include autocomplete dropdown should not be visible
+
+  Scenario: @include autocomplete filters by partial name
+    When I click the explorer toggle button
+    And I add a new document named "intro.md"
+    And I add a new document named "summary.md"
+    And I click the document "main.md" in the file list
+    And I type "@include(int" in the editor
+    Then the include autocomplete dropdown should be visible
+    And the autocomplete should list "intro.md"
+    And the autocomplete should not list "summary.md"
+
+  Scenario: @include autocomplete hides on Escape
+    When I click the explorer toggle button
+    And I add a new document named "chapter1.md"
+    And I click the document "main.md" in the file list
+    And I type "@include(" in the editor
+    Then the include autocomplete dropdown should be visible
+    When I press "Escape" in the editor
+    Then the include autocomplete dropdown should not be visible

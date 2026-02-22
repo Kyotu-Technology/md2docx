@@ -129,3 +129,41 @@ Then("the document {string} should have the main star active", async ({ page }, 
   const star = item.locator(".main-star.is-main");
   await expect(star).toBeVisible({ timeout: 3000 });
 });
+
+When("I type {string} in the editor", async ({ page }, text) => {
+  const textarea = page.locator("#markdown");
+  await textarea.click();
+  await textarea.press("End");
+  await page.keyboard.type(text, { delay: 30 });
+  await page.waitForTimeout(200);
+});
+
+When("I press {string} in the editor", async ({ page }, key) => {
+  await page.keyboard.press(key);
+  await page.waitForTimeout(200);
+});
+
+Then("the include autocomplete dropdown should be visible", async ({ page }) => {
+  const dropdown = page.locator(".include-autocomplete");
+  await expect(dropdown).toBeVisible({ timeout: 3000 });
+});
+
+Then("the autocomplete should list {string}", async ({ page }, name) => {
+  const item = page.locator(".include-autocomplete-item", { hasText: name });
+  await expect(item).toBeVisible({ timeout: 3000 });
+});
+
+Then("the autocomplete should not list {string}", async ({ page }, name) => {
+  const items = page.locator(".include-autocomplete-item");
+  const count = await items.count();
+  for (let i = 0; i < count; i++) {
+    const text = await items.nth(i).textContent();
+    expect(text.trim()).not.toContain(name);
+  }
+});
+
+Then("the include autocomplete dropdown should not be visible", async ({ page }) => {
+  const dropdown = page.locator(".include-autocomplete");
+  const isHidden = await dropdown.evaluate((el) => !el || el.style.display === "none" || el.style.display === "");
+  expect(isHidden).toBe(true);
+});
