@@ -13,6 +13,7 @@ import { escapeHtml } from "./utils.js";
 import { toast, confirm, conflictDialog } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
+import { initDiagramActions } from "./diagram-actions.js";
 import { getAllDocuments, saveDocument, deleteDocument, setMainDocument, migrateFromLocalStorage } from "./file-explorer/storage.js";
 import { resolveIncludes, resolveIncludesWithMap } from "./file-explorer/resolver.js";
 import { initFileExplorer, refreshFileList, toggleExplorer, isExplorerOpen } from "./file-explorer/ui.js";
@@ -611,7 +612,7 @@ async function updatePreview() {
     const previewOptions = { logoDataUrl, pagedMode: true };
     await updatePreviewPaged(elements, metadata, theme, previewOptions);
   } else {
-    const previewOptions = { logoDataUrl };
+    const previewOptions = { logoDataUrl, interactive: true };
     preview.classList.remove("page-mode");
     await renderPreview(preview, elements, metadata, theme, previewOptions);
   }
@@ -979,6 +980,7 @@ readabilityMetrics.addEventListener("click", (e) => {
 initScrollSync(markdownInput, preview);
 initFormattingToolbar(markdownInput);
 initIncludeAutocomplete(markdownInput, () => allDocuments);
+initDiagramActions(preview);
 updateSyncToggleUI();
 
 function updateSyncToggleUI() {

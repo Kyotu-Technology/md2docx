@@ -94,7 +94,8 @@ export function generateHTMLPreview(elements, metadata, themeIdOrObject = "kyotu
       html += '<div class="title-page-break"></div>';
     }
   }
-  for (const el of elements) html += elementToHTML(el, theme);
+  const interactive = !!options.interactive;
+  for (const el of elements) html += elementToHTML(el, theme, interactive);
   return html;
 }
 
@@ -121,7 +122,7 @@ function formatInlineHTML(text, theme) {
     .join("");
 }
 
-function elementToHTML(el, theme) {
+function elementToHTML(el, theme, interactive = false) {
   const c = theme.colors;
   const lineAttr = el.line !== undefined ? ` data-line="${el.line}"` : "";
 
@@ -167,7 +168,11 @@ function elementToHTML(el, theme) {
       return `<pre${lineAttr} style="background:#${c.codeBg};border:1px solid #${c.codeBorder};"><code class="hljs">${highlightCodeHtml(el.content, el.language)}</code></pre>`;
     case "mermaid": {
       const mermaidCode = applyMermaidTheme(el.content, theme);
-      return `<div${lineAttr}><img class="mermaid-diagram" src="${getMermaidPreviewUrl(mermaidCode)}" alt="Mermaid" onerror="this.outerHTML='<pre style=\\'color:#${COLORS.error};background:#fef2f2;padding:1rem;border-radius:0.5rem;\\'>Diagram render error</pre>'"></div>`;
+      const imgSrc = getMermaidPreviewUrl(mermaidCode);
+      const actions = interactive
+        ? `<div class="mermaid-actions"><button data-diagram-action="copy" title="Copy to clipboard"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button><button data-diagram-action="download" title="Download PNG"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>`
+        : "";
+      return `<div${lineAttr} class="mermaid-container"><img class="mermaid-diagram" src="${imgSrc}" alt="Mermaid" onerror="this.parentElement.innerHTML='<pre style=\\'color:#${COLORS.error};background:#fef2f2;padding:1rem;border-radius:0.5rem;\\'>Diagram render error</pre>'">${actions}</div>`;
     }
     case "table": {
       let t = `<table style="border-color:#${c.tableBorder};">`;

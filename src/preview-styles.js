@@ -166,6 +166,41 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
       align-items: center !important;
       gap: 0.5rem !important;
     }
+    :is(${selectors}) .mermaid-container {
+      position: relative !important;
+    }
+    :is(${selectors}) .mermaid-actions {
+      position: absolute !important;
+      top: 0.5rem !important;
+      right: 0.5rem !important;
+      display: flex !important;
+      gap: 0.25rem !important;
+      opacity: 0 !important;
+      transition: opacity 0.15s ease !important;
+    }
+    :is(${selectors}) .mermaid-container:hover .mermaid-actions {
+      opacity: 1 !important;
+    }
+    :is(${selectors}) .mermaid-actions button {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 2rem !important;
+      height: 2rem !important;
+      border-radius: 0.375rem !important;
+      border: 1px solid rgba(0,0,0,0.12) !important;
+      background: rgba(255,255,255,0.92) !important;
+      color: #374151 !important;
+      cursor: pointer !important;
+      backdrop-filter: blur(4px) !important;
+      transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
+      padding: 0 !important;
+    }
+    :is(${selectors}) .mermaid-actions button:hover {
+      background: #fff !important;
+      color: #111827 !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+    }
     :is(${selectors}) img.mermaid-diagram {
       max-width: 100% !important;
       height: auto !important;
