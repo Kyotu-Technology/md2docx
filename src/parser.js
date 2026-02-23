@@ -153,10 +153,10 @@ export function parseBodyToElements(body) {
       const startLine = i;
       const tableRows = [];
       while (i < lines.length && lines[i].includes("|")) {
-        const row = lines[i]
-          .split("|")
-          .map((c) => c.trim())
-          .filter((c) => c !== "");
+        const raw = lines[i].split("|").map((c) => c.trim());
+        if (raw.length > 0 && raw[0] === "") raw.shift();
+        if (raw.length > 0 && raw[raw.length - 1] === "") raw.pop();
+        const row = raw;
         if (!lines[i].match(/^[\s-:|]+$/)) tableRows.push(row);
         i++;
       }

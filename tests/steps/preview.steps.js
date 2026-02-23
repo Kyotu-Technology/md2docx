@@ -97,3 +97,17 @@ Then("the first row should contain {string} cells", async ({ page }, cellTag) =>
   const count = await cells.count();
   expect(count).toBeGreaterThan(0);
 });
+
+Then("the table should have {int} columns", async ({ page }, expectedCols) => {
+  const cells = page.locator(
+    "#preview table tr:first-child th, #preview table tr:first-child td"
+  );
+  await expect(cells).toHaveCount(expectedCols);
+});
+
+Then("row {int} should have {int} cells", async ({ page }, rowNum, expectedCells) => {
+  const cells = page.locator(
+    `#preview table tr:nth-child(${rowNum}) td, #preview table tr:nth-child(${rowNum}) th`
+  );
+  await expect(cells).toHaveCount(expectedCells);
+});
