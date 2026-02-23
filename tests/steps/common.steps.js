@@ -28,6 +28,17 @@ export const test = base.extend({
     });
     const page = await context.newPage();
     await use(page);
+    try {
+      await page.evaluate(() => {
+        if (window.__blobMap && window.__origRevokeObjectURL) {
+          for (const url of window.__blobMap.keys()) {
+            window.__origRevokeObjectURL(url);
+          }
+          window.__blobMap.clear();
+        }
+        if (window.__pendingReads) window.__pendingReads.clear();
+      });
+    } catch {}
     await context.close().catch(() => {});
     await browser.close().catch(() => {});
   },

@@ -29,34 +29,44 @@ async function installDownloadInterceptor(page) {
     window.__downloadInterceptorInstalled = true;
     window.__downloadCaptures = [];
     window.__blobMap = new Map();
+    window.__pendingReads = new Set();
 
-    // Intercept createObjectURL to map URLs to blobs
     const origCreateObjectURL = URL.createObjectURL.bind(URL);
+    const origRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+    window.__origRevokeObjectURL = origRevokeObjectURL;
+
     URL.createObjectURL = function (blob) {
       const url = origCreateObjectURL(blob);
       window.__blobMap.set(url, blob);
       return url;
     };
 
-    // Prevent early blob URL revocation
-    URL.revokeObjectURL = function () {};
+    URL.revokeObjectURL = function (url) {
+      if (window.__pendingReads.has(url)) return;
+      window.__blobMap.delete(url);
+      origRevokeObjectURL(url);
+    };
 
-    // Intercept anchor click to capture download data
     const origClick = HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click = function () {
       if (this.download && this.href && this.href.startsWith("blob:")) {
         const blob = window.__blobMap.get(this.href);
         if (blob) {
+          const blobUrl = this.href;
+          window.__pendingReads.add(blobUrl);
           const reader = new FileReader();
           reader.onload = () => {
             window.__downloadCaptures.push({
               filename: this.download,
               data: Array.from(new Uint8Array(reader.result)),
             });
+            window.__pendingReads.delete(blobUrl);
+            window.__blobMap.delete(blobUrl);
+            origRevokeObjectURL(blobUrl);
           };
           reader.readAsArrayBuffer(blob);
         }
-        return; // Don't trigger actual download
+        return;
       }
       return origClick.call(this);
     };
@@ -162,4 +172,26 @@ Then("the HTML should contain an {string} tag", async ({}, tag) => {
 Then("the HTML should contain {int} {string} elements", async ({}, count, selector) => {
   const $ = htmlValidator.parseBuffer(lastDownloadBuffer);
   expect($(selector).length).toBe(count);
+});
+
+Then("the DOCX should contain an image with correct aspect ratio", async ({}) => {
+  const { doc, zip } = await docxValidator.parse(lastDownloadBuffer);
+  const extents = docxValidator.getImageExtents(doc);
+  expect(extents.length).toBeGreaterThan(0);
+
+  const { cx, cy } = extents[0];
+  const docxRatio = cy / cx;
+
+  const mediaFiles = Object.keys(zip.files).filter(
+    (f) => f.startsWith("word/media/") && !zip.files[f].dir
+  );
+  expect(mediaFiles.length).toBeGreaterThan(0);
+
+  const pngBuffer = await zip.file(mediaFiles[0]).async("nodebuffer");
+  expect(pngBuffer.length).toBeGreaterThanOrEqual(24);
+  const pngWidth = pngBuffer.readUInt32BE(16);
+  const pngHeight = pngBuffer.readUInt32BE(20);
+  const pngRatio = pngHeight / pngWidth;
+
+  expect(Math.abs(docxRatio - pngRatio)).toBeLessThan(0.02);
 });

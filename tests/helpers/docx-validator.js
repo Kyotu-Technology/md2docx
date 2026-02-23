@@ -131,4 +131,25 @@ export class DocxValidator {
   findByStyle(doc, styleName) {
     return this.getParagraphs(doc).filter((p) => this.getParagraphStyle(p) === styleName);
   }
+
+  getImageExtents(doc) {
+    const paragraphs = this.getParagraphs(doc);
+    const extents = [];
+    for (const p of paragraphs) {
+      const runs = p["w:r"] || [];
+      for (const r of runs) {
+        const drawing = r["w:drawing"];
+        if (!drawing) continue;
+        const inline = drawing["wp:inline"];
+        if (!inline) continue;
+        const extent = inline["wp:extent"];
+        if (!extent) continue;
+        extents.push({
+          cx: parseInt(extent["@_cx"], 10),
+          cy: parseInt(extent["@_cy"], 10),
+        });
+      }
+    }
+    return extents;
+  }
 }

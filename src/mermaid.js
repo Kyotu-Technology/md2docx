@@ -13,6 +13,15 @@ export function encodeMermaidForKroki(code) {
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+function readPngDimensions(data) {
+  if (data.length < 24) return null;
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const width = view.getUint32(16, false);
+  const height = view.getUint32(20, false);
+  if (width === 0 || height === 0) return null;
+  return { width, height };
+}
+
 export async function renderMermaidDiagram(code) {
   const encoded = encodeMermaidForKroki(code);
   const url = `https://kroki.io/mermaid/png/${encoded}`;
@@ -22,8 +31,10 @@ export async function renderMermaidDiagram(code) {
 
   const blob = await response.blob();
   const arrayBuffer = await blob.arrayBuffer();
+  const buffer = new Uint8Array(arrayBuffer);
+  const dims = readPngDimensions(buffer) || { width: 500, height: 300 };
 
-  return { buffer: new Uint8Array(arrayBuffer), width: 500, height: 300 };
+  return { buffer, width: dims.width, height: dims.height };
 }
 
 export function getMermaidPreviewUrl(code) {
