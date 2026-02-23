@@ -1,4 +1,5 @@
 const INCLUDE_REGEX = /^@include\((.+)\)$/gm;
+const INCLUDE_LINE_REGEX = /^@include\((.+)\)$/;
 const MAX_DEPTH = 10;
 
 export function resolveIncludes(content, documentsMap, _visited = new Set(), _depth = 0) {
@@ -17,4 +18,35 @@ export function resolveIncludes(content, documentsMap, _visited = new Set(), _de
 
     return resolveIncludes(docContent, documentsMap, nextVisited, _depth + 1);
   });
+}
+
+export function resolveIncludesWithMap(content, documentsMap) {
+  const originalLines = content.split("\n");
+  const resolvedLines = [];
+  const lineMap = [];
+
+  for (let i = 0; i < originalLines.length; i++) {
+    const line = originalLines[i];
+    const match = line.match(INCLUDE_LINE_REGEX);
+
+    if (match) {
+      const trimmed = match[1].trim();
+      const docContent = documentsMap.get(trimmed);
+      if (docContent !== undefined) {
+        const visited = new Set([trimmed]);
+        const resolved = resolveIncludes(docContent, documentsMap, visited, 1);
+        const includedLines = resolved.split("\n");
+        for (const il of includedLines) {
+          resolvedLines.push(il);
+          lineMap.push(i);
+        }
+        continue;
+      }
+    }
+
+    resolvedLines.push(line);
+    lineMap.push(i);
+  }
+
+  return { resolved: resolvedLines.join("\n"), lineMap };
 }

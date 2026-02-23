@@ -180,6 +180,13 @@ When("I fill the editor with {int} lines of text", async ({ page }, lines) => {
   await page.waitForTimeout(100);
 });
 
+Then("the preview element containing {string} should have data-line {string}", async ({ page }, text, expectedLine) => {
+  const el = page.locator("#preview [data-line]").filter({ hasText: text }).first();
+  await expect(el).toBeVisible({ timeout: 3000 });
+  const actualLine = await el.getAttribute("data-line");
+  expect(actualLine).toBe(expectedLine);
+});
+
 Then("the autocomplete dropdown should be within the viewport", async ({ page }) => {
   const result = await page.evaluate(() => {
     const dd = document.querySelector(".include-autocomplete");

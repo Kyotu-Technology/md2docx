@@ -14,7 +14,7 @@ import { toast, confirm, conflictDialog } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 import { getAllDocuments, saveDocument, deleteDocument, setMainDocument, migrateFromLocalStorage } from "./file-explorer/storage.js";
-import { resolveIncludes } from "./file-explorer/resolver.js";
+import { resolveIncludes, resolveIncludesWithMap } from "./file-explorer/resolver.js";
 import { initFileExplorer, refreshFileList, toggleExplorer, isExplorerOpen } from "./file-explorer/ui.js";
 import { initIncludeAutocomplete } from "./file-explorer/autocomplete.js";
 
@@ -567,13 +567,26 @@ async function updatePreview() {
   }
 
   let previewMd = md;
+  let includeLineMap = null;
   if (currentDoc?.isMain && allDocuments.length > 1) {
     const docsMap = new Map(allDocuments.map((d) => [d.name, d.content]));
-    previewMd = resolveIncludes(md, docsMap);
+    const result = resolveIncludesWithMap(md, docsMap);
+    previewMd = result.resolved;
+    includeLineMap = result.lineMap;
   }
 
   const { metadata, body } = parseMarkdown(previewMd);
   const elements = parseBodyToElements(body);
+
+  if (includeLineMap) {
+    const metadataLineCount = previewMd.split("\n").length - body.split("\n").length;
+    for (const el of elements) {
+      if (el.line !== undefined) {
+        const resolvedLine = el.line + metadataLineCount;
+        el.line = includeLineMap[resolvedLine] ?? el.line;
+      }
+    }
+  }
   const themeId = themeSelect.value;
   const theme = await getThemeOrTemplate(themeId);
 
