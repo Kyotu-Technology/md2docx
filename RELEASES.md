@@ -1,5 +1,17 @@
 # Releases
 
+## 1.3.0
+
+### New features
+- **File explorer** — Sidebar panel for managing multiple Markdown documents in one session. Documents stored in IndexedDB with drag & drop import. `@include(filename)` references let you compose a main document from parts, with autocomplete and recursive resolution.
+- **Mermaid diagram actions** — Copy to clipboard and download as PNG buttons on every diagram preview.
+
+### Fixes
+- **Table empty cells** — Parser no longer drops empty cells from tables (`| foo | | bar |` works correctly).
+- **Mermaid diagram dimensions** — Actual PNG dimensions read from Kroki response instead of hardcoded 500×300. Diagrams now render with correct proportions in DOCX and PDF exports.
+
+---
+
 ## 1.2.0
 
 ### New features
