@@ -1,2 +1,2 @@
 export { toast } from "./toast.js";
-export { confirm } from "./confirm.js";
+export { confirm, conflictDialog } from "./confirm.js";

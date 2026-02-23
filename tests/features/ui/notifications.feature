@@ -7,7 +7,7 @@ Feature: Toast notifications
     Given the editor is empty
     When I click the generate button
     Then a toast notification should appear
-    And the toast should contain text "Please paste or load Markdown content"
+    And the toast should contain text "Main document is empty!"
     And the toast should have a solid dark background
     And the toast should be fully visible
 

@@ -7,7 +7,7 @@ export const INLINE_PATTERNS = [
   { regex: /\*\*\*(.+?)\*\*\*/g, type: "boldItalic" },
   { regex: /\*\*(.+?)\*\*/g, type: "bold" },
   { regex: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, type: "italic" },
-  { regex: /_(.+?)_/g, type: "italic" },
+  { regex: /(?<!\w)_(.+?)_(?!\w)/g, type: "italic" },
   { regex: /`(.+?)`/g, type: "code" },
   { regex: /\[(.+?)\]\((.+?)\)/g, type: "link" },
 ];
