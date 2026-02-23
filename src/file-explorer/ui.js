@@ -50,6 +50,7 @@ export function initFileExplorer(container, cbs) {
   if (_isOpen) {
     explorerPanel.style.width = "200px";
     explorerPanel.style.minWidth = "200px";
+    explorerPanel.style.pointerEvents = "";
   }
 }
 
@@ -130,7 +131,10 @@ function startRename(itemEl, doc) {
   input.focus();
   input.select();
 
+  let done = false;
   function finish() {
+    if (done) return;
+    done = true;
     const newName = input.value.trim();
     input.remove();
     nameSpan.style.display = "";
@@ -209,9 +213,11 @@ export function toggleExplorer(forceState) {
   if (_isOpen) {
     explorerPanel.style.width = "200px";
     explorerPanel.style.minWidth = "200px";
+    explorerPanel.style.pointerEvents = "";
   } else {
     explorerPanel.style.width = "0";
     explorerPanel.style.minWidth = "0";
+    explorerPanel.style.pointerEvents = "none";
   }
 
   try {

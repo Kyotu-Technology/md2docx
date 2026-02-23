@@ -1,11 +1,10 @@
-const INCLUDE_REGEX = /^@include\((.+)\)$/gm;
 const INCLUDE_LINE_REGEX = /^@include\((.+)\)$/;
 const MAX_DEPTH = 10;
 
 export function resolveIncludes(content, documentsMap, _visited = new Set(), _depth = 0) {
   if (_depth >= MAX_DEPTH) return content;
 
-  return content.replace(INCLUDE_REGEX, (match, name) => {
+  return content.replace(/^@include\((.+)\)$/gm, (match, name) => {
     const trimmed = name.trim();
 
     if (_visited.has(trimmed)) return match;

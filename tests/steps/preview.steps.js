@@ -90,6 +90,18 @@ Then(
   }
 );
 
+// --- Negative element assertions ---
+
+Then("the preview paragraph should not contain a {string} element", async ({ page }, tag) => {
+  const count = await page.locator(`#preview p ${tag}`).count();
+  expect(count).toBe(0);
+});
+
+Then("the preview paragraph should not contain an {string} element", async ({ page }, tag) => {
+  const count = await page.locator(`#preview p ${tag}`).count();
+  expect(count).toBe(0);
+});
+
 // --- Table ---
 
 Then("the first row should contain {string} cells", async ({ page }, cellTag) => {

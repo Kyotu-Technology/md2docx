@@ -5,10 +5,13 @@ let selectedIndex = -1;
 let currentItems = [];
 let isVisible = false;
 let mirror = null;
+let activeTextarea = null;
 
 const TRIGGER = /@include\(([^)]*$)/;
 
 export function initIncludeAutocomplete(textarea, getDocuments) {
+  activeTextarea = textarea;
+
   textarea.addEventListener("input", () => {
     checkForTrigger(textarea, getDocuments);
   });
@@ -122,14 +125,12 @@ function getCursorCoords(textarea) {
   mirror.appendChild(span);
   mirror.appendChild(document.createTextNode(value.substring(cursorPos) || "."));
 
-  mirror.scrollTop = textarea.scrollTop;
-
   const spanRect = span.getBoundingClientRect();
   const lh = parseFloat(style.lineHeight);
   const lineHeight = isNaN(lh) ? parseFloat(style.fontSize) * 1.5 : lh;
 
   const x = spanRect.left;
-  const y = spanRect.top + lineHeight;
+  const y = spanRect.top - textarea.scrollTop + lineHeight;
 
   const dropdownWidth = 200;
   return {
@@ -178,8 +179,7 @@ function renderItems() {
       e.preventDefault();
       const idx = parseInt(el.dataset.index);
       if (currentItems[idx]) {
-        const textarea = document.getElementById("markdown");
-        applyCompletion(textarea, currentItems[idx]);
+        applyCompletion(activeTextarea, currentItems[idx]);
       }
       hideDropdown();
     });

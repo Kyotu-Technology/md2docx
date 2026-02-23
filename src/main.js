@@ -378,8 +378,14 @@ async function switchDocument(docId) {
 
 async function addDocument(name) {
   if (!name?.trim()) return;
+  const trimmed = name.trim();
 
-  const doc = await saveDocument({ name: name.trim(), content: "", isMain: false });
+  if (allDocuments.some((d) => d.name === trimmed)) {
+    toast.warning(`File "${trimmed}" already exists`);
+    return;
+  }
+
+  const doc = await saveDocument({ name: trimmed, content: "", isMain: false });
   allDocuments = await getAllDocuments();
   refreshFileList(allDocuments, currentDocId);
   await switchDocument(doc.id);
@@ -414,6 +420,12 @@ async function removeDocument(docId) {
 async function renameDocument(docId, newName) {
   const doc = allDocuments.find((d) => d.id === docId);
   if (!doc) return;
+
+  if (allDocuments.some((d) => d.id !== docId && d.name === newName)) {
+    toast.warning(`File "${newName}" already exists`);
+    refreshFileList(allDocuments, currentDocId);
+    return;
+  }
 
   doc.name = newName;
   await saveDocument(doc);
@@ -554,7 +566,7 @@ async function updatePreview() {
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = md;
-    saveDocument(currentDoc);
+    saveDocument(currentDoc).catch(() => toast.error("Failed to save document"));
   }
 
   if (!md.trim()) {
@@ -726,6 +738,9 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
 
 async function generateDocument(format = "docx") {
   const mainDoc = allDocuments.find((d) => d.isMain);
+  if (mainDoc && mainDoc.id === currentDocId) {
+    mainDoc.content = markdownInput.value;
+  }
   const mainContent = mainDoc ? mainDoc.content : markdownInput.value;
 
   if (!mainContent.trim()) {

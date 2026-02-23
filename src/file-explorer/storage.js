@@ -87,7 +87,7 @@ export async function saveDocument(doc) {
 export async function deleteDocument(id) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
+    const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const getReq = store.get(id);
 
@@ -96,13 +96,10 @@ export async function deleteDocument(id) {
         resolve(false);
         return;
       }
-      const delTx = db.transaction(STORE_NAME, "readwrite");
-      const delStore = delTx.objectStore(STORE_NAME);
-      const delReq = delStore.delete(id);
-      delReq.onsuccess = () => resolve(true);
-      delReq.onerror = () => reject(delReq.error);
+      store.delete(id);
     };
-    getReq.onerror = () => reject(getReq.error);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
 }
 

@@ -3,6 +3,7 @@ import { highlightCodeHtml } from "./highlighter.js";
 import { getTheme } from "./themes/index.js";
 import { escapeHtml } from "./utils.js";
 import { COLORS } from "./constants.js";
+import { parseInlineSegments } from "./inline-formatting.js";
 
 const hpToPx = (hp) => (hp / 2) * (16 / 12);
 
@@ -100,19 +101,24 @@ export function generateHTMLPreview(elements, metadata, themeIdOrObject = "kyotu
 function formatInlineHTML(text, theme) {
   const c = theme.colors;
   const boldColor = c.bold || COLORS.boldFallback;
-  return text
-    .replace(/\*\*\*(.+?)\*\*\*/g, `<strong style="color:#${boldColor};"><em>$1</em></strong>`)
-    .replace(/\*\*(.+?)\*\*/g, `<strong style="color:#${boldColor};">$1</strong>`)
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/_(.+?)_/g, "<em>$1</em>")
-    .replace(
-      /`(.+?)`/g,
-      `<code style="background:#${c.codeBg};color:#${c.text};padding:0.125rem 0.375rem;border-radius:0.25rem;font-size:0.85em;border:1px solid #${c.codeBorder};">$1</code>`
-    )
-    .replace(
-      /\[(.+?)\]\((.+?)\)/g,
-      `<a href="$2" style="color:#${c.accent};text-decoration:none;border-bottom:1px solid transparent;">$1</a>`
-    );
+  return parseInlineSegments(text)
+    .map((seg) => {
+      switch (seg.type) {
+        case "bold":
+          return `<strong style="color:#${boldColor};">${seg.text}</strong>`;
+        case "italic":
+          return `<em>${seg.text}</em>`;
+        case "boldItalic":
+          return `<strong style="color:#${boldColor};"><em>${seg.text}</em></strong>`;
+        case "code":
+          return `<code style="background:#${c.codeBg};color:#${c.text};padding:0.125rem 0.375rem;border-radius:0.25rem;font-size:0.85em;border:1px solid #${c.codeBorder};">${seg.text}</code>`;
+        case "link":
+          return `<a href="${seg.url}" style="color:#${c.accent};text-decoration:none;border-bottom:1px solid transparent;">${seg.text}</a>`;
+        default:
+          return seg.text;
+      }
+    })
+    .join("");
 }
 
 function elementToHTML(el, theme) {

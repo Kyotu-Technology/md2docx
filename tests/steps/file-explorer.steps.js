@@ -19,7 +19,7 @@ When("I click the explorer toggle button", async ({ page }) => {
 });
 
 When("I click outside the editor", async ({ page }) => {
-  await page.locator("body").click({ position: { x: 10, y: 10 } });
+  await page.locator("#preview").click({ position: { x: 10, y: 10 } });
   await page.evaluate(() => {
     document.getElementById("markdown")?.blur();
   });
