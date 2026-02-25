@@ -1,5 +1,13 @@
 # Releases
 
+## 1.3.1
+
+### Fixes
+- **Angle brackets in tables** — `<` and `>` in table cells and paragraphs no longer break rendering.
+- **File explorer toggle** — Toggle button no longer bleeds through the open explorer panel.
+
+---
+
 ## 1.3.0
 
 ### New features

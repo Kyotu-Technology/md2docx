@@ -7,12 +7,12 @@ Feature: File explorer
   Scenario: Explorer panel is hidden by default
     Then the file explorer panel should not be visible
 
-  Scenario: Explorer toggle button opens and closes the panel
+  Scenario: Explorer panel opens via toggle and closes via close button
     When I click the explorer toggle button
     Then the file explorer panel should be visible
     And the file list should contain 1 document
     And the document "main.md" should be listed
-    When I click the explorer toggle button
+    When I click the explorer close button
     Then the file explorer panel should not be visible
 
   Scenario: Ctrl+B outside editor toggles the explorer
