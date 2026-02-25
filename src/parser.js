@@ -13,8 +13,8 @@ function cleanContentOutsideCodeBlocks(content) {
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/\u2014/g, "-")
         .replace(/\u2013/g, "-");
-      while (/<[^>]+>/.test(line)) {
-        line = line.replace(/<[^>]+>/g, "");
+      while (/<\/?[a-zA-Z][^>]*>/.test(line)) {
+        line = line.replace(/<\/?[a-zA-Z][^>]*>/g, "");
       }
       return line;
     })
