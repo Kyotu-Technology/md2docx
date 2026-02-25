@@ -51,12 +51,6 @@ export function initFileExplorer(container, cbs) {
     explorerPanel.style.width = "200px";
     explorerPanel.style.minWidth = "200px";
     explorerPanel.style.pointerEvents = "";
-    const toggleBtn = document.getElementById("explorerToggle");
-    if (toggleBtn) {
-      toggleBtn.style.display = "none";
-      toggleBtn.style.opacity = "1";
-      toggleBtn.style.color = "#f97c00";
-    }
   }
 }
 
@@ -229,13 +223,6 @@ export function toggleExplorer(forceState) {
   try {
     localStorage.setItem("md2docx-explorer-open", _isOpen);
   } catch {}
-
-  const toggleBtn = document.getElementById("explorerToggle");
-  if (toggleBtn) {
-    toggleBtn.style.display = _isOpen ? "none" : "";
-    toggleBtn.style.opacity = _isOpen ? "1" : "";
-    toggleBtn.style.color = _isOpen ? "#f97c00" : "";
-  }
 
   return _isOpen;
 }

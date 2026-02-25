@@ -18,6 +18,10 @@ When("I click the explorer toggle button", async ({ page }) => {
   await btn.click();
 });
 
+When("I click the explorer close button", async ({ page }) => {
+  await page.locator("#explorerClose").click();
+});
+
 When("I click outside the editor", async ({ page }) => {
   await page.locator("#preview").click({ position: { x: 10, y: 10 } });
   await page.evaluate(() => {
