@@ -186,6 +186,7 @@ Object.keys(toggles).forEach((id) => {
         })
       );
     } catch {}
+    updatePreview();
   });
 });
 
@@ -627,10 +628,18 @@ async function updatePreview() {
   }
 
   if (previewMode === "pages") {
-    const previewOptions = { logoDataUrl, pagedMode: true };
+    const previewOptions = {
+      logoDataUrl,
+      pagedMode: true,
+      showTitlePage: exportOptions.showTitlePage,
+    };
     await updatePreviewPaged(elements, metadata, theme, previewOptions);
   } else {
-    const previewOptions = { logoDataUrl, interactive: true };
+    const previewOptions = {
+      logoDataUrl,
+      interactive: true,
+      showTitlePage: exportOptions.showTitlePage,
+    };
     preview.classList.remove("page-mode");
     await renderPreview(preview, elements, metadata, theme, previewOptions);
   }
@@ -1088,6 +1097,31 @@ initScrollSync(markdownInput, preview);
 initFormattingToolbar(markdownInput);
 initIncludeAutocomplete(markdownInput, () => allDocuments);
 initDiagramActions(preview);
+
+preview.addEventListener("click", (e) => {
+  const placeholder = e.target.closest("[data-action='insert-frontmatter']");
+  if (!placeholder) return;
+  insertFrontmatterTemplate();
+});
+
+function insertFrontmatterTemplate() {
+  const current = markdownInput.value;
+  if (current.trimStart().startsWith("---")) {
+    markdownInput.focus();
+    const firstNewline = current.indexOf("\n");
+    markdownInput.setSelectionRange(firstNewline + 1, firstNewline + 1);
+    markdownInput.scrollTop = 0;
+    return;
+  }
+  const template = `---\ntitle: ""\nsubtitle: ""\nauthor: ""\ndate: ""\n---\n\n`;
+  markdownInput.value = template + current;
+  markdownInput.focus();
+  const cursorPos = template.indexOf('title: "') + 'title: "'.length;
+  markdownInput.setSelectionRange(cursorPos, cursorPos);
+  markdownInput.scrollTop = 0;
+  markdownInput.dispatchEvent(new Event("input"));
+}
+
 updateSyncToggleUI();
 
 function updateSyncToggleUI() {

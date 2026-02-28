@@ -402,7 +402,9 @@
         padding: 2px;
         color: #9ca3af;
         border-radius: 3px;
-        transition: color 0.1s, background 0.1s;
+        transition:
+          color 0.1s,
+          background 0.1s;
       }
       .explorer-item .item-actions button:hover {
         color: #ef4444;
@@ -698,7 +700,7 @@
       <div id="settingsPanel" class="settings-panel bg-gray-900 border-t border-gray-800">
         <div class="px-4 py-3 flex flex-wrap items-center gap-6">
           <span class="text-xs text-gray-500 uppercase tracking-wider font-medium"
-            >Export Options</span
+            >Document Options</span
           >
 
           <label class="flex items-center gap-2 cursor-pointer group">
@@ -746,18 +748,50 @@
     </header>
 
     <main class="flex-1 flex flex-col lg:flex-row min-h-0 relative">
-      <div id="explorerPanel" class="hidden lg:flex flex-col min-h-0 bg-white border-r border-gray-200 overflow-hidden absolute left-0 top-0 bottom-0 z-30 shadow-lg" style="width: 0; min-width: 0; pointer-events: none; transition: width 0.2s ease, min-width 0.2s ease, box-shadow 0.2s ease;">
-        <div class="px-3 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+      <div
+        id="explorerPanel"
+        class="hidden lg:flex flex-col min-h-0 bg-white border-r border-gray-200 overflow-hidden absolute left-0 top-0 bottom-0 z-30 shadow-lg"
+        style="
+          width: 0;
+          min-width: 0;
+          pointer-events: none;
+          transition:
+            width 0.2s ease,
+            min-width 0.2s ease,
+            box-shadow 0.2s ease;
+        "
+      >
+        <div
+          class="px-3 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0"
+        >
           <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Files</span>
           <div class="flex items-center gap-1">
-            <button id="addDocBtn" class="text-gray-400 hover:text-kyotu-orange transition-colors p-0.5" title="New document">
+            <button
+              id="addDocBtn"
+              class="text-gray-400 hover:text-kyotu-orange transition-colors p-0.5"
+              title="New document"
+            >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
             </button>
-            <button id="explorerClose" class="text-gray-400 hover:text-gray-600 transition-colors p-0.5" title="Close (Ctrl+B)">
+            <button
+              id="explorerClose"
+              class="text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+              title="Close (Ctrl+B)"
+            >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -770,9 +804,18 @@
           class="px-4 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between shrink-0"
         >
           <div class="flex items-center gap-2">
-            <button id="explorerToggle" class="opacity-50 hover:opacity-80 text-gray-500 transition-all hidden lg:block" title="Toggle file explorer (Ctrl+B)">
+            <button
+              id="explorerToggle"
+              class="opacity-50 hover:opacity-80 text-gray-500 transition-all hidden lg:block"
+              title="Toggle file explorer (Ctrl+B)"
+            >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
             </button>
             <div

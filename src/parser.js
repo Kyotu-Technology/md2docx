@@ -27,10 +27,12 @@ export function parseMarkdown(content) {
   const lines = content.split("\n");
   let metadata = {};
   let bodyLines = lines;
+  let hasExplicitFrontmatter = false;
 
   if (lines[0] === "---") {
     const endIndex = lines.findIndex((l, i) => i > 0 && l === "---");
     if (endIndex > 0) {
+      hasExplicitFrontmatter = true;
       const yamlLines = lines.slice(1, endIndex);
       yamlLines.forEach((line) => {
         const match = line.match(/^([\w-]+):\s*"?([^"]*)"?$/);
@@ -39,6 +41,13 @@ export function parseMarkdown(content) {
       bodyLines = lines.slice(endIndex + 1);
     }
   }
+
+  const explicitFields = {
+    title: metadata.title || null,
+    subtitle: metadata.subtitle || null,
+    author: metadata.author || null,
+    date: metadata.date || null,
+  };
 
   if (!metadata.title) {
     const firstH1 = bodyLines.find((l) => l.match(/^# /));
@@ -63,6 +72,9 @@ export function parseMarkdown(content) {
     ];
     metadata.date = `${months[now.getMonth()]} ${now.getFullYear()}`;
   }
+
+  metadata._hasExplicitFrontmatter = hasExplicitFrontmatter;
+  metadata._explicitFields = explicitFields;
 
   return { metadata, body: bodyLines.join("\n") };
 }

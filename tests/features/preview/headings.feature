@@ -34,3 +34,28 @@ Feature: Heading rendering in preview
     Then the preview should contain text "My Report"
     And the preview should contain text "Executive Summary"
     And the preview should contain text "Test Author"
+
+  Scenario: Preview without frontmatter shows placeholder instead of phantom title page
+    Given the editor contains:
+      """
+      # My Document
+      Some content here.
+      """
+    When the preview renders
+    Then the preview should contain a ".title-page-placeholder" element
+    And the preview should not contain a ".title-page" element
+
+  Scenario: Title page toggle OFF hides title page and placeholder from preview
+    Given the editor contains:
+      """
+      ---
+      title: "My Report"
+      author: "Author"
+      ---
+      # Introduction
+      Content.
+      """
+    When the title page toggle is turned off
+    And the preview renders
+    Then the preview should not contain a ".title-page" element
+    And the preview should not contain a ".title-page-placeholder" element

@@ -230,6 +230,42 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
       page-break-after: always;
       display: block;
     }
+    :is(${selectors}) .title-page-placeholder {
+      border: 2px dashed #${c.muted}80;
+      border-radius: 8px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: transparent;
+    }
+    :is(${selectors}) .title-page-placeholder:hover {
+      border-color: #${c.primary};
+      background: #${c.primary}08;
+    }
+    :is(${selectors}) .title-page-placeholder-icon {
+      color: #${c.muted};
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+    :is(${selectors}) .title-page-placeholder:hover .title-page-placeholder-icon {
+      color: #${c.primary};
+    }
+    :is(${selectors}) .title-page-placeholder-text {
+      font-family: ${bodyFont};
+      font-size: 14px;
+      font-weight: 500;
+      color: #${c.secondary};
+    }
+    :is(${selectors}) .title-page-placeholder-hint {
+      font-family: ${bodyFont};
+      font-size: 12px;
+      color: #${c.muted};
+      margin-top: 0.25rem;
+    }
   `;
 }
 

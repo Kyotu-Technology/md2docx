@@ -84,16 +84,42 @@ function generateTitlePage(metadata, theme, options = {}) {
   return html;
 }
 
+function generateTitlePagePlaceholder() {
+  return `<div class="title-page-placeholder" data-action="insert-frontmatter">
+    <div class="title-page-placeholder-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14m-7-7h14"/>
+      </svg>
+    </div>
+    <div class="title-page-placeholder-text">Click to add title page</div>
+    <div class="title-page-placeholder-hint">title &middot; subtitle &middot; author &middot; date</div>
+  </div>`;
+}
+
 export function generateHTMLPreview(elements, metadata, themeIdOrObject = "kyotu", options = {}) {
   const theme = typeof themeIdOrObject === "string" ? getTheme(themeIdOrObject) : themeIdOrObject;
 
   let html = "";
-  if (metadata.title || metadata.subtitle || metadata.author || metadata.date) {
-    html += generateTitlePage(metadata, theme, options);
-    if (options.pagedMode) {
-      html += '<div class="title-page-break"></div>';
+  const showTitlePage = options.showTitlePage !== false;
+
+  if (showTitlePage) {
+    const isUserPreview = !!options.interactive || !!options.pagedMode;
+    const explicit = metadata._explicitFields;
+    const hasExplicitContent =
+      explicit && (explicit.title || explicit.subtitle || explicit.author || explicit.date);
+
+    if (hasExplicitContent) {
+      html += generateTitlePage(isUserPreview ? explicit : metadata, theme, options);
+      if (options.pagedMode) {
+        html += '<div class="title-page-break"></div>';
+      }
+    } else if (!isUserPreview && (metadata.title || metadata.date)) {
+      html += generateTitlePage(metadata, theme, options);
+    } else if (options.interactive) {
+      html += generateTitlePagePlaceholder();
     }
   }
+
   const interactive = !!options.interactive;
   for (const el of elements) html += elementToHTML(el, theme, interactive);
   return html;
