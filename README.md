@@ -16,6 +16,7 @@ Write Markdown, get polished documents. Live preview, syntax highlighting, Merma
 - **Format** with floating toolbar — bold, italic, code, links (Ctrl+B/I/E/K)
 - **Customize** with themes or create your own templates
 - **Manage** multiple documents with file explorer and `@include(filename)` composition
+- **Share** documents via encrypted URL — password-protected, with optional expiry
 - **Diagrams** — copy or download Mermaid diagrams as PNG directly from preview
 - **Search** semantically with Ctrl+K (AI-powered, runs locally)
 - **Works offline** — everything runs in your browser
@@ -42,7 +43,7 @@ bun run test:ui           # Playwright UI mode
 bun run test:update-snapshots  # update visual baselines
 ```
 
-53 scenarios covering export quality (DOCX/HTML/PDF), live preview rendering, formatting toolbar, file explorer, mermaid diagrams, UI notifications, and visual regression.
+70 scenarios covering export quality (DOCX/HTML/PDF), live preview rendering, formatting toolbar, file explorer, sharing, mermaid diagrams, UI notifications, and visual regression.
 
 ## Contributing
 
