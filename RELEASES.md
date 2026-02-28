@@ -1,5 +1,12 @@
 # Releases
 
+## 1.4.0
+
+### New features
+- **Document sharing** — Share documents via encrypted URL links. Content is compressed (pako deflate) and encrypted (AES-256-GCM) client-side, then embedded in the URL fragment which never leaves the browser. Two modes: link-only (encryption key in URL) and password-protected (PBKDF2 key derivation). Configurable link expiry (1h to 30 days). Import shared documents with Replace All or Merge options. Optional URL shortening via is.gd.
+
+---
+
 ## 1.3.1
 
 ### Fixes

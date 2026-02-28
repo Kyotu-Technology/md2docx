@@ -14,10 +14,22 @@ import { toast, confirm, conflictDialog } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 import { initDiagramActions } from "./diagram-actions.js";
-import { getAllDocuments, saveDocument, deleteDocument, setMainDocument, migrateFromLocalStorage } from "./file-explorer/storage.js";
+import {
+  getAllDocuments,
+  saveDocument,
+  deleteDocument,
+  setMainDocument,
+  migrateFromLocalStorage,
+} from "./file-explorer/storage.js";
 import { resolveIncludes, resolveIncludesWithMap } from "./file-explorer/resolver.js";
-import { initFileExplorer, refreshFileList, toggleExplorer, isExplorerOpen } from "./file-explorer/ui.js";
+import {
+  initFileExplorer,
+  refreshFileList,
+  toggleExplorer,
+  isExplorerOpen,
+} from "./file-explorer/ui.js";
 import { initIncludeAutocomplete } from "./file-explorer/autocomplete.js";
+import { openShareDialog, isShareFragment } from "./sharing/index.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -135,6 +147,7 @@ const modePages = $("modePages");
 const manageTemplatesBtn = $("manageTemplatesBtn");
 const explorerToggle = $("explorerToggle");
 const currentDocName = $("currentDocName");
+const shareBtn = $("shareBtn");
 
 let customLogoDataUrl = null;
 let previewMode = "continuous";
@@ -348,6 +361,11 @@ async function initDocuments() {
   updateCurrentDocLabel();
   refreshFileList(allDocuments, currentDocId);
   updatePreview();
+
+  if (isShareFragment(window.location.hash)) {
+    const { handleShareFragment } = await import("./sharing/import-handler.js");
+    await handleShareFragment(window.location.hash, importSharedFiles);
+  }
 }
 
 function updateCurrentDocLabel() {
@@ -822,6 +840,80 @@ function generateUniqueName(name, documents) {
   return candidate;
 }
 
+async function importSharedFiles(files, mode) {
+  if (mode === "replace") {
+    const mainDoc = allDocuments.find((d) => d.isMain);
+    if (mainDoc) {
+      mainDoc.isMain = false;
+      await saveDocument(mainDoc);
+    }
+    for (const doc of allDocuments) {
+      await deleteDocument(doc.id);
+    }
+    for (const file of files) {
+      await saveDocument({
+        name: file.name,
+        content: file.content,
+        isMain: !!file.isMain,
+      });
+    }
+    allDocuments = await getAllDocuments();
+    if (allDocuments.length && !allDocuments.some((d) => d.isMain)) {
+      await setMainDocument(allDocuments[0].id);
+      allDocuments = await getAllDocuments();
+    }
+    const newMain = allDocuments.find((d) => d.isMain) || allDocuments[0];
+    if (newMain) {
+      currentDocId = newMain.id;
+      markdownInput.value = newMain.content;
+    }
+    updateCurrentDocLabel();
+    refreshFileList(allDocuments, currentDocId);
+    updatePreview();
+    toast.success(`Imported ${files.length} file${files.length > 1 ? "s" : ""}`);
+  } else if (mode === "merge") {
+    let added = 0;
+    let replaced = 0;
+    let skipped = 0;
+
+    for (const file of files) {
+      const existing = allDocuments.find((d) => d.name === file.name);
+      if (existing) {
+        const action = await conflictDialog({
+          title: "File already exists",
+          message: `A file named "${file.name}" already exists. What would you like to do?`,
+        });
+        if (action === "replace") {
+          existing.content = file.content;
+          await saveDocument(existing);
+          allDocuments = await getAllDocuments();
+          replaced++;
+        } else if (action === "keep-both") {
+          const newName = generateUniqueName(file.name, allDocuments);
+          await saveDocument({ name: newName, content: file.content, isMain: false });
+          allDocuments = await getAllDocuments();
+          added++;
+        } else {
+          skipped++;
+        }
+      } else {
+        await saveDocument({ name: file.name, content: file.content, isMain: false });
+        allDocuments = await getAllDocuments();
+        added++;
+      }
+    }
+
+    refreshFileList(allDocuments, currentDocId);
+    updatePreview();
+
+    const parts = [];
+    if (added > 0) parts.push(`${added} added`);
+    if (replaced > 0) parts.push(`${replaced} replaced`);
+    if (skipped > 0) parts.push(`${skipped} skipped`);
+    if (parts.length > 0) toast.success(`Files: ${parts.join(", ")}`);
+  }
+}
+
 function isValidTextFile(file) {
   return file.name.endsWith(".md") || file.name.endsWith(".txt") || file.type === "text/plain";
 }
@@ -923,6 +1015,16 @@ loadExample.addEventListener("click", () => {
 });
 fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));
 
+function syncCurrentDocContent() {
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  if (currentDoc) currentDoc.content = markdownInput.value;
+}
+
+shareBtn?.addEventListener("click", () => {
+  syncCurrentDocContent();
+  openShareDialog(allDocuments, currentDocId);
+});
+
 dropzone.addEventListener("dragover", (e) => {
   e.preventDefault();
   dropzone.classList.add("dragover");
@@ -955,6 +1057,11 @@ document.addEventListener("keydown", (e) => {
     } else {
       openSearch();
     }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "l") {
+    e.preventDefault();
+    syncCurrentDocContent();
+    openShareDialog(allDocuments, currentDocId);
   }
 });
 
