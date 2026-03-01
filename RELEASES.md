@@ -9,6 +9,7 @@
 - **DOCX table formatting** — Header row is now properly bold in exported DOCX. Table spans full document width with column widths proportional to content length.
 
 ### Changed
+- **Document metrics** — Readability panel (Flesch-Kincaid score, passive voice) replaced with practical document metrics. Shows character counts (with and without spaces) and word counts broken down by content category: title page, headings, body text, lists, tables, and code blocks. Useful for formal documents with character or page limits where different elements may count differently. Badge in the preview header shows total character count. Heading hierarchy validation preserved.
 - **Honest title page preview** — Live preview now shows title page only from explicit YAML frontmatter instead of auto-generating phantom titles and dates from H1 headings and `new Date()`. When no frontmatter is present, a clickable placeholder guides users to add metadata. DOCX/PDF/HTML export retains auto-fallback behavior for professional output.
 - **Document Options** — "Export Options" renamed to "Document Options". Toggles (Title Page, ToC, Header, Footer) now affect both live preview and export, making the editor truly WYSIWYG.
 

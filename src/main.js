@@ -3,7 +3,7 @@ import { generateDocxBlob } from "./docx-renderer.js";
 import { generatePdfBlob } from "./pdf-renderer.js";
 import { generateHtmlBlob } from "./html-export.js";
 import { getThemeOrTemplate, getFullThemeList } from "./themes/index.js";
-import { analyzeReadability, getScoreColor, getScoreLabel } from "./ai/readability.js";
+import { analyzeDocumentMetrics } from "./ai/document-metrics.js";
 import { openSearch, updateSearchIndex } from "./ai/search-ui.js";
 import { initScrollSync, toggleSync, isSyncEnabled, jumpToPreview } from "./scroll-sync.js";
 import { openTemplateManager } from "./template-manager/index.js";
@@ -493,89 +493,58 @@ function hideStatus() {
   status.classList.add("hidden");
 }
 
-function updateReadabilityUI(analysis) {
-  if (!analysis || analysis.wordCount < 10) {
+function formatNumber(n) {
+  return n.toLocaleString("en-US");
+}
+
+function updateMetricsUI(metrics) {
+  if (!metrics || metrics.totals.words < 1) {
     readabilityBadge.style.display = "none";
     readabilityPanel.classList.remove("open");
     return;
   }
 
-  const color = getScoreColor(analysis.score);
-  const label = getScoreLabel(analysis.score);
   readabilityBadge.style.display = "";
-  readabilityBadge.style.background = color + "20";
-  readabilityBadge.style.color = color;
-  readabilityBadge.textContent = `${analysis.score}/100`;
-  readabilityBadge.title = `Quality: ${label}`;
+  readabilityBadge.style.background = "#f3f4f6";
+  readabilityBadge.style.color = "#374151";
+  readabilityBadge.textContent = `${formatNumber(metrics.totals.chars)} chars`;
+  readabilityBadge.title = `${formatNumber(metrics.totals.words)} words`;
 
-  const issues = [];
-  if (analysis.headingIssues.length > 0) {
-    issues.push(
-      ...analysis.headingIssues.map(
-        (h) =>
-          `<span class="text-red-500 cursor-pointer" data-line="${h.line}">Heading skip: ${h.got} after ${h.expected} "${escapeHtml(h.content)}"</span>`
-      )
-    );
+  const cat = metrics.categories;
+  const rows = [];
+
+  if (cat.titlePage.chars > 0) {
+    rows.push({ label: "Title page", ...cat.titlePage });
   }
-  if (analysis.passiveVoice.percent > 15) {
-    issues.push(
-      `<span class="text-yellow-600">High passive voice: ${analysis.passiveVoice.percent}%</span>`
-    );
-  }
-  if (analysis.avgSentenceLength > 25) {
-    issues.push(
-      `<span class="text-yellow-600">Long sentences: avg ${analysis.avgSentenceLength} words</span>`
-    );
-  }
+  rows.push({ label: "Headings", ...cat.headings });
+  rows.push({ label: "Body", ...cat.body });
+  rows.push({ label: "Lists", ...cat.lists });
+  rows.push({ label: "Tables", ...cat.tables });
+  rows.push({ label: "Code", ...cat.code });
+
+  const tableRows = rows
+    .map((r) => {
+      const cls = r.chars === 0 ? ' class="metrics-zero"' : "";
+      return `<tr${cls}><td>${r.label}</td><td>${formatNumber(r.chars)}</td><td>${formatNumber(r.charsNoSpaces)}</td><td>${formatNumber(r.words)}</td></tr>`;
+    })
+    .join("");
+
+  const t = metrics.totals;
+  const issues = metrics.headingIssues.map(
+    (h) =>
+      `<span class="text-red-500 cursor-pointer" data-line="${h.line}">Heading skip: ${h.got} after ${h.expected} "${escapeHtml(h.content)}"</span>`
+  );
 
   readabilityMetrics.innerHTML = `
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-      <div class="metric-row flex-col items-start gap-0.5">
-        <span class="metric-label">Flesch-Kincaid Grade</span>
-        <span class="metric-value">${analysis.fleschKincaid.grade}</span>
-      </div>
-      <div class="metric-row flex-col items-start gap-0.5">
-        <span class="metric-label">Readability Score</span>
-        <span class="metric-value">${analysis.fleschKincaid.score}</span>
-      </div>
-      <div class="metric-row flex-col items-start gap-0.5">
-        <span class="metric-label">Avg Sentence Length</span>
-        <span class="metric-value">${analysis.avgSentenceLength} words</span>
-      </div>
-      <div class="metric-row flex-col items-start gap-0.5">
-        <span class="metric-label">Passive Voice</span>
-        <span class="metric-value">${analysis.passiveVoice.percent}%</span>
-      </div>
-      <div class="metric-row flex-col items-start gap-0.5">
-        <span class="metric-label">Vocabulary Richness</span>
-        <span class="metric-value">${analysis.vocabulary.richness}</span>
-      </div>
-      <div class="metric-row flex-col items-start gap-0.5">
-        <span class="metric-label">Words / Sentences</span>
-        <span class="metric-value">${analysis.wordCount} / ${analysis.sentenceCount}</span>
-      </div>
-    </div>
-    ${
-      analysis.sectionBalance.sections.length > 1
-        ? `<div class="mt-2 text-xs">
-        <span class="metric-label">Section Balance:</span>
-        <div class="flex gap-1 mt-1 items-end h-8">
-          ${analysis.sectionBalance.sections
-            .map((s) => {
-              const maxWords = Math.max(...analysis.sectionBalance.sections.map((x) => x.words));
-              const h = maxWords > 0 ? Math.max(4, (s.words / maxWords) * 32) : 4;
-              return `<div title="${escapeHtml(s.heading)}: ${s.words} words" class="bg-kyotu-orange/60 rounded-t" style="width:${100 / analysis.sectionBalance.sections.length}%;height:${h}px"></div>`;
-            })
-            .join("")}
-        </div>
-      </div>`
-        : ""
-    }
-    ${
-      issues.length > 0
-        ? `<div class="mt-2 space-y-1 text-xs">${issues.map((i) => `<div>${i}</div>`).join("")}</div>`
-        : ""
-    }
+    <table class="metrics-table">
+      <thead><tr><th>Category</th><th>Chars</th><th>No spaces</th><th>Words</th></tr></thead>
+      <tbody>
+        ${tableRows}
+        <tr class="metrics-total"><td>Total</td><td>${formatNumber(t.chars)}</td><td>${formatNumber(t.charsNoSpaces)}</td><td>${formatNumber(t.words)}</td></tr>
+      </tbody>
+    </table>
+    ${metrics.diagrams > 0 ? `<div class="mt-1.5 text-xs text-gray-400">Diagrams: ${metrics.diagrams}</div>` : ""}
+    ${issues.length > 0 ? `<div class="mt-2 space-y-1 text-xs">${issues.map((i) => `<div>${i}</div>`).join("")}</div>` : ""}
   `;
 }
 
@@ -647,8 +616,8 @@ async function updatePreview() {
   metaElements.textContent = elements.length;
   metaInfo.classList.remove("hidden");
 
-  const analysis = analyzeReadability(elements);
-  updateReadabilityUI(analysis);
+  const metrics = analyzeDocumentMetrics(elements, metadata);
+  updateMetricsUI(metrics);
 
   updateSearchIndex(elements);
 }
