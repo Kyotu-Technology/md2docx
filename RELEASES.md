@@ -5,6 +5,9 @@
 ### New features
 - **Document sharing** — Share documents via encrypted URL links. Content is compressed (pako deflate) and encrypted (AES-256-GCM) client-side, then embedded in the URL fragment which never leaves the browser. Two modes: link-only (encryption key in URL) and password-protected (PBKDF2 key derivation). Configurable link expiry (1h to 30 days). Import shared documents with Replace All or Merge options. Optional URL shortening via is.gd.
 
+### Fixes
+- **DOCX table formatting** — Header row is now properly bold in exported DOCX. Table spans full document width with column widths proportional to content length.
+
 ### Changed
 - **Honest title page preview** — Live preview now shows title page only from explicit YAML frontmatter instead of auto-generating phantom titles and dates from H1 headings and `new Date()`. When no frontmatter is present, a clickable placeholder guides users to add metadata. DOCX/PDF/HTML export retains auto-fallback behavior for professional output.
 - **Document Options** — "Export Options" renamed to "Document Options". Toggles (Title Page, ToC, Header, Footer) now affect both live preview and export, making the editor truly WYSIWYG.

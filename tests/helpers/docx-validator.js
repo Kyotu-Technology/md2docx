@@ -132,6 +132,44 @@ export class DocxValidator {
     return this.getParagraphs(doc).filter((p) => this.getParagraphStyle(p) === styleName);
   }
 
+  getTables(doc) {
+    const body = doc["w:document"]?.["w:body"];
+    if (!body) return [];
+    return body["w:tbl"] || [];
+  }
+
+  getTableCellText(cell) {
+    return (cell["w:p"] || []).map((p) => this.getParagraphText(p)).join("");
+  }
+
+  isRunBold(run) {
+    const rPr = run["w:rPr"];
+    if (!rPr) return false;
+    const bold = rPr["w:b"];
+    if (bold === undefined || bold === null) return false;
+    if (typeof bold === "string") return bold !== "false";
+    if (typeof bold === "object" && bold["@_w:val"] === "false") return false;
+    return true;
+  }
+
+  isCellBold(cell) {
+    const runs = (cell["w:p"] || []).flatMap((p) => p["w:r"] || []);
+    if (runs.length === 0) return false;
+    return runs.every((r) => this.isRunBold(r));
+  }
+
+  getTableColumnWidths(table) {
+    const rows = table["w:tr"] || [];
+    if (rows.length === 0) return [];
+    const firstRow = rows[0];
+    const cells = firstRow["w:tc"] || [];
+    return cells.map((cell) => {
+      const tcPr = cell["w:tcPr"];
+      const tcW = tcPr?.["w:tcW"];
+      return tcW ? parseInt(tcW["@_w:w"], 10) : 0;
+    });
+  }
+
   getImageExtents(doc) {
     const paragraphs = this.getParagraphs(doc);
     const extents = [];

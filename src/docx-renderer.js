@@ -6,6 +6,7 @@ import { loadLogoPng } from "./logo.js";
 import { parseInlineSegments } from "./inline-formatting.js";
 
 const getDocx = () => window.docx;
+const A4_WIDTH_TWIPS = 11906;
 
 function dataUrlToBase64(dataUrl) {
   return dataUrl ? dataUrl.split(",")[1] : null;
@@ -51,7 +52,7 @@ function themeAdapter(theme) {
   };
 }
 
-export function parseInlineFormatting(text, t) {
+export function parseInlineFormatting(text, t, overrides = {}) {
   const { TextRun, ShadingType } = getDocx();
   const boldColor = t.colorBold || COLORS.boldFallback;
   const segments = parseInlineSegments(text);
@@ -76,6 +77,7 @@ export function parseInlineFormatting(text, t) {
         font: t.fontBody,
         size: t.sizeBody,
         ...styleMap[seg.type],
+        ...overrides,
       })
   );
 }
@@ -525,28 +527,45 @@ async function elementToDocx(element, theme, t) {
       const border = { style: BorderStyle.SINGLE, size: 1, color: t.colorTableBorder };
       const borders = { top: border, bottom: border, left: border, right: border };
       const colCount = element.rows[0]?.length || 1;
-      const colWidth = Math.floor(9360 / colCount);
+      const tableWidth = A4_WIDTH_TWIPS - 2 * t.marginPage;
+
+      const charWidth = t.sizeTable * 5;
+      const cellPadding = 240;
+      const minColWidth = 3 * charWidth + cellPadding;
+
+      const maxLengths = Array(colCount).fill(0);
+      for (const row of element.rows) {
+        for (let c = 0; c < colCount; c++) {
+          if (row[c]) maxLengths[c] = Math.max(maxLengths[c], row[c].length);
+        }
+      }
+
+      const sqrtLengths = maxLengths.map((len) => Math.sqrt(Math.max(len, 1)));
+      const totalSqrt = sqrtLengths.reduce((sum, l) => sum + l, 0);
+      const rawWidths = sqrtLengths.map((l) =>
+        Math.max(Math.floor((l / totalSqrt) * tableWidth), minColWidth)
+      );
+      const rawTotal = rawWidths.reduce((sum, w) => sum + w, 0);
+      const colWidths = rawWidths.map((w) => Math.floor((w / rawTotal) * tableWidth));
+
+      const cellTheme = { ...t, sizeBody: t.sizeTable, sizeMono: t.sizeTable - 2 };
+
       return new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        columnWidths: Array(colCount).fill(colWidth),
+        width: { size: tableWidth, type: WidthType.DXA },
+        columnWidths: colWidths,
         rows: element.rows.map(
           (row, rowIdx) =>
             new TableRow({
               children: row.map((cell, colIdx) => {
                 const isHeader = rowIdx === 0;
-                const isFirstCol = colIdx === 0;
-                const cellRuns = parseInlineFormatting(cell, {
-                  ...t,
-                  sizeBody: t.sizeTable,
-                  sizeMono: t.sizeTable - 2,
-                });
-                if (isHeader || isFirstCol)
-                  cellRuns.forEach((run) => {
-                    if (run.properties) run.properties.bold = true;
-                  });
+                const cellRuns = parseInlineFormatting(
+                  cell,
+                  cellTheme,
+                  isHeader ? { bold: true } : undefined
+                );
                 return new TableCell({
                   borders,
-                  width: { size: colWidth, type: WidthType.DXA },
+                  width: { size: colWidths[colIdx], type: WidthType.DXA },
                   shading: isHeader
                     ? { fill: t.colorTableHeader, type: ShadingType.CLEAR }
                     : undefined,
@@ -631,7 +650,7 @@ export async function createDocument(metadata, elements, themeId = "kyotu", opti
     sections.push({
       properties: {
         page: {
-          size: { width: 11906, height: 16838 },
+          size: { width: A4_WIDTH_TWIPS, height: 16838 },
           margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
         },
       },
@@ -643,7 +662,7 @@ export async function createDocument(metadata, elements, themeId = "kyotu", opti
     sections.push({
       properties: {
         page: {
-          size: { width: 11906, height: 16838 },
+          size: { width: A4_WIDTH_TWIPS, height: 16838 },
           margin: {
             top: t.marginPageTop,
             right: t.marginPage,
@@ -662,7 +681,7 @@ export async function createDocument(metadata, elements, themeId = "kyotu", opti
   sections.push({
     properties: {
       page: {
-        size: { width: 11906, height: 16838 },
+        size: { width: A4_WIDTH_TWIPS, height: 16838 },
         margin: {
           top: t.marginPageTop,
           right: t.marginPage,

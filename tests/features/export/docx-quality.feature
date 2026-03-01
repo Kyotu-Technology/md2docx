@@ -61,6 +61,22 @@ Feature: DOCX export quality
     Then the DOCX text content should contain "Item1"
     And the DOCX text content should contain "Item2"
 
+  Scenario: DOCX table header row is bold and columns are proportional
+    Given the editor contains:
+      """
+      ---
+      title: "Table Formatting"
+      ---
+
+      | ID | Full Description of the Feature | Status |
+      | -- | ------------------------------- | ------ |
+      | 1  | Implement user authentication   | Done   |
+      | 2  | Add dashboard analytics view    | WIP    |
+      """
+    When I export as "docx"
+    Then the DOCX table header row should be bold
+    And the DOCX table columns should have proportional widths
+
   Scenario: DOCX HTML conversion preserves semantic structure
     Given the editor contains the file "full-document.md"
     When I export as "docx"

@@ -174,6 +174,28 @@ Then("the HTML should contain {int} {string} elements", async ({}, count, select
   expect($(selector).length).toBe(count);
 });
 
+Then("the DOCX table header row should be bold", async ({}) => {
+  const { doc } = await docxValidator.parse(lastDownloadBuffer);
+  const tables = docxValidator.getTables(doc);
+  expect(tables.length).toBeGreaterThan(0);
+  const rows = tables[0]["w:tr"] || [];
+  expect(rows.length).toBeGreaterThan(0);
+  const headerCells = rows[0]["w:tc"] || [];
+  for (const cell of headerCells) {
+    expect(docxValidator.isCellBold(cell)).toBe(true);
+  }
+});
+
+Then("the DOCX table columns should have proportional widths", async ({}) => {
+  const { doc } = await docxValidator.parse(lastDownloadBuffer);
+  const tables = docxValidator.getTables(doc);
+  expect(tables.length).toBeGreaterThan(0);
+  const widths = docxValidator.getTableColumnWidths(tables[0]);
+  expect(widths.length).toBeGreaterThan(1);
+  const allEqual = widths.every((w) => w === widths[0]);
+  expect(allEqual).toBe(false);
+});
+
 Then("the DOCX should contain an image with correct aspect ratio", async ({}) => {
   const { doc, zip } = await docxValidator.parse(lastDownloadBuffer);
   const extents = docxValidator.getImageExtents(doc);
