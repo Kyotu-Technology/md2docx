@@ -2,25 +2,11 @@ import { createBdd } from "playwright-bdd";
 import { test as base } from "playwright-bdd";
 import { chromium } from "playwright-core";
 
-/**
- * Custom test fixture that launches a fresh Chromium instance per test.
- * Required for gVisor/container environments where --single-process mode
- * crashes after browser context cleanup.
- *
- * In CI environments with proper Chromium support, the standard
- * Playwright browser management works fine.
- */
 export const test = base.extend({
   page: async ({}, use) => {
     const browser = await chromium.launch({
       headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-gpu",
-        "--single-process",
-        "--no-zygote",
-      ],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },

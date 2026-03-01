@@ -102,6 +102,16 @@ Then("the preview paragraph should not contain an {string} element", async ({ pa
   expect(count).toBe(0);
 });
 
+Then("the preview should not contain a {string} element", async ({ page }, selector) => {
+  const count = await page.locator(`#preview ${selector}`).count();
+  expect(count).toBe(0);
+});
+
+When("the title page toggle is turned off", async ({ page }) => {
+  await page.click("#settingsBtn");
+  await page.click("#toggleTitlePage");
+});
+
 // --- Table ---
 
 Then("the first row should contain {string} cells", async ({ page }, cellTag) => {
