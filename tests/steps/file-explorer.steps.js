@@ -55,12 +55,42 @@ When("I delete the document {string}", async ({ page }, name) => {
   const deleteBtn = item.locator(".item-actions button");
   await deleteBtn.click();
 
-  const confirmModal = page.locator("#confirmModal");
-  await confirmModal.waitFor({ state: "visible", timeout: 3000 });
-  await page.locator("#confirmOk").click();
-  await confirmModal.waitFor({ state: "hidden", timeout: 3000 });
+  const confirmYes = item.locator(".delete-confirm .confirm-yes");
+  await confirmYes.waitFor({ state: "visible", timeout: 3000 });
+  await confirmYes.click();
+  await page.waitForTimeout(300);
+});
+
+When("I start deleting the document {string}", async ({ page }, name) => {
+  const item = page.locator("#fileList .explorer-item", { hasText: name });
+  await item.hover();
+  const deleteBtn = item.locator(".item-actions button");
+  await deleteBtn.click();
+  await page.waitForTimeout(100);
+});
+
+When("I cancel the delete confirmation for {string}", async ({ page }, name) => {
+  const item = page.locator("#fileList .explorer-item", { hasText: name });
+  await item.locator(".delete-confirm .confirm-no").click();
   await page.waitForTimeout(200);
 });
+
+Then(
+  "the document {string} shows an inline delete confirmation",
+  async ({ page }, name) => {
+    const item = page.locator("#fileList .explorer-item", { hasText: name });
+    await expect(item.locator(".delete-confirm")).toBeVisible({ timeout: 2000 });
+    await expect(item).toHaveClass(/confirm-delete/);
+  }
+);
+
+Then(
+  "the document {string} no longer shows a delete confirmation",
+  async ({ page }, name) => {
+    const item = page.locator("#fileList .explorer-item", { hasText: name });
+    await expect(item.locator(".delete-confirm")).toHaveCount(0, { timeout: 2000 });
+  }
+);
 
 When("I rename the document {string} to {string}", async ({ page }, oldName, newName) => {
   const item = page.locator("#fileList .explorer-item", { hasText: oldName });
