@@ -1,5 +1,18 @@
 # Releases
 
+## 1.5.0
+
+### New features
+- **Local filesystem sync** - Mount a local folder and work with real files on disk. Bidirectional sync: edits in the browser auto-save to disk, external changes (from VS Code, Vim, AI coding agents) appear in the app within seconds. Uses File System Access API with FileSystemObserver (Chrome 133+) for event-driven detection and polling fallback for older Chromium browsers. Session restore remembers the last mounted folder. Chromium-only (Chrome, Edge, Opera, Brave); Firefox and Safari gracefully degrade with zero broken UI.
+
+### Changed
+- **File explorer redesign** - Sidebar is now a push-based dark panel matching the app's header/footer chrome, instead of a white overlay that covered the editor. In local-fs mode, files are grouped into collapsible folders (one level deep) with chevron toggle, replacing the star-based main document indicator. Delete confirmation is now inline (checkmark/X buttons with 4-second auto-cancel) instead of a modal dialog. Filenames show a tooltip with the full path on hover. Width increased from 200px to 220px.
+
+### Fixes
+- **External change feedback loop** - When a file was modified on disk and the app detected the change, `updatePreview()` would write the same content back to disk, causing the external editor to see "file changed on disk" warnings. Fixed by adding `skipSave` parameter to `updatePreview()` for all code paths where content originates from disk.
+
+---
+
 ## 1.4.0
 
 ### New features

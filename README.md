@@ -16,6 +16,7 @@ Write Markdown, get polished documents. Live preview, syntax highlighting, Merma
 - **Format** with floating toolbar — bold, italic, code, links (Ctrl+B/I/E/K)
 - **Customize** with themes or create your own templates
 - **Manage** multiple documents with file explorer and `@include(filename)` composition
+- **Sync** with local folders - mount a directory, edit in your IDE or AI agent, changes sync both ways (Chromium)
 - **Share** documents via encrypted URL — password-protected, with optional expiry
 - **Diagrams** — copy or download Mermaid diagrams as PNG directly from preview
 - **Search** semantically with Ctrl+K (AI-powered, runs locally)

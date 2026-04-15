@@ -10,7 +10,7 @@ import { openTemplateManager } from "./template-manager/index.js";
 import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
-import { toast, confirm, conflictDialog } from "./notifications/index.js";
+import { toast, conflictDialog } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 import { initDiagramActions } from "./diagram-actions.js";
@@ -30,6 +30,21 @@ import {
 } from "./file-explorer/ui.js";
 import { initIncludeAutocomplete } from "./file-explorer/autocomplete.js";
 import { openShareDialog, isShareFragment } from "./sharing/index.js";
+import {
+  isLocalFsMode,
+  getStorageMode,
+  setCallbacks as setLocalFsCallbacks,
+  saveToLocalFs,
+  createInLocalFs,
+  deleteFromLocalFs,
+  renameInLocalFs,
+  changeMainInLocalFs,
+  restoreFromPersistedHandle,
+  fileToDocument,
+  localIdFor,
+  initMountUI,
+  handleMountShortcut,
+} from "./local-fs/index.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -348,6 +363,22 @@ async function initThemeSelect() {
 }
 
 async function initDocuments() {
+  setLocalFsCallbacks({
+    onDocuments: loadDocuments,
+    onExternalChange: handleExternalFileChange,
+    onUnmount: handleUnmount,
+  });
+
+  if (getStorageMode() === "local-fs") {
+    const docs = await restoreFromPersistedHandle();
+    if (docs && docs.length > 0) {
+      loadDocuments(docs);
+      initMountUI();
+      return;
+    }
+    toast.info("Could not restore local folder — using saved documents");
+  }
+
   await migrateFromLocalStorage();
   allDocuments = await getAllDocuments();
 
@@ -356,16 +387,131 @@ async function initDocuments() {
     allDocuments = await getAllDocuments();
   }
 
-  const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
-  currentDocId = mainDoc.id;
-  markdownInput.value = mainDoc.content;
-  updateCurrentDocLabel();
-  refreshFileList(allDocuments, currentDocId);
-  updatePreview();
+  loadDocuments(allDocuments);
+  initMountUI();
 
   if (isShareFragment(window.location.hash)) {
     const { handleShareFragment } = await import("./sharing/import-handler.js");
     await handleShareFragment(window.location.hash, importSharedFiles);
+  }
+}
+
+function loadDocuments(docs) {
+  allDocuments = docs;
+
+  if (currentDocId) {
+    const stillThere = allDocuments.find((d) => d.id === currentDocId);
+    if (stillThere) {
+      stillThere.content = markdownInput.value;
+      updateCurrentDocLabel();
+      refreshFileList(allDocuments, currentDocId);
+      return;
+    }
+  }
+
+  const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
+  if (mainDoc) {
+    currentDocId = mainDoc.id;
+    markdownInput.value = mainDoc.content;
+  } else {
+    currentDocId = null;
+    markdownInput.value = "";
+  }
+  updateCurrentDocLabel();
+  refreshFileList(allDocuments, currentDocId);
+  updatePreview({ skipSave: isLocalFsMode() });
+}
+
+async function handleUnmount() {
+  allDocuments = await getAllDocuments();
+  if (allDocuments.length === 0) {
+    await saveDocument({ name: "main.md", content: "", isMain: true });
+    allDocuments = await getAllDocuments();
+  }
+  loadDocuments(allDocuments);
+  toast.info("Folder unmounted — using saved documents");
+}
+
+function handleExternalFileChange(change) {
+  if (change.type === "modified") {
+    const doc = allDocuments.find((d) => d.name === change.path);
+    if (!doc) return;
+    if (doc.id === currentDocId) {
+      const currentContent = markdownInput.value;
+      if (currentContent !== doc.content && currentContent !== change.content) {
+        const t = toast.warning(`External change in "${change.path}"`, 0);
+        toast.withActions(t, [
+          {
+            label: "Use External",
+            className:
+              "px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors",
+            onClick: () => {
+              doc.content = change.content;
+              markdownInput.value = change.content;
+              updatePreview({ skipSave: true });
+            },
+          },
+          { label: "Keep Mine" },
+        ]);
+        return;
+      }
+      doc.content = change.content;
+      markdownInput.value = change.content;
+      updatePreview({ skipSave: true });
+    } else {
+      doc.content = change.content;
+    }
+  } else if (change.type === "created") {
+    const exists = allDocuments.find((d) => d.name === change.path);
+    if (exists) return;
+    allDocuments.push(fileToDocument(change.path, change.content || "", null));
+    refreshFileList(allDocuments, currentDocId);
+  } else if (change.type === "deleted") {
+    const doc = allDocuments.find((d) => d.name === change.path);
+    if (!doc) return;
+    if (doc.id === currentDocId) {
+      const t = toast.warning(`"${change.path}" was deleted externally`, 0);
+      toast.withActions(t, [
+        {
+          label: "Re-create",
+          className:
+            "px-2 py-1 text-xs bg-kyotu-orange hover:bg-kyotu-orange-light text-white rounded transition-colors",
+          onClick: async () => {
+            const newDoc = await createInLocalFs(change.path);
+            if (newDoc) {
+              newDoc.content = markdownInput.value;
+              await saveToLocalFs(newDoc.name, newDoc.content);
+              allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+              allDocuments.push(newDoc);
+              currentDocId = newDoc.id;
+              refreshFileList(allDocuments, currentDocId);
+            }
+          },
+        },
+        {
+          label: "Close",
+          onClick: () => {
+            allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+            const next = allDocuments.find((d) => d.isMain) || allDocuments[0];
+            if (next) {
+              currentDocId = next.id;
+              markdownInput.value = next.content;
+              updateCurrentDocLabel();
+              updatePreview({ skipSave: true });
+            } else {
+              currentDocId = null;
+              markdownInput.value = "";
+              updateCurrentDocLabel();
+              updatePreview({ skipSave: true });
+            }
+            refreshFileList(allDocuments, currentDocId);
+          },
+        },
+      ]);
+    } else {
+      allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+      refreshFileList(allDocuments, currentDocId);
+    }
   }
 }
 
@@ -383,7 +529,11 @@ async function switchDocument(docId) {
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = markdownInput.value;
-    await saveDocument(currentDoc);
+    if (isLocalFsMode()) {
+      await saveToLocalFs(currentDoc.name, currentDoc.content);
+    } else {
+      await saveDocument(currentDoc);
+    }
   }
 
   const nextDoc = allDocuments.find((d) => d.id === docId);
@@ -405,33 +555,46 @@ async function addDocument(name) {
     return;
   }
 
-  const doc = await saveDocument({ name: trimmed, content: "", isMain: false });
-  allDocuments = await getAllDocuments();
-  refreshFileList(allDocuments, currentDocId);
-  await switchDocument(doc.id);
+  if (isLocalFsMode()) {
+    const doc = await createInLocalFs(trimmed);
+    if (!doc) return;
+    allDocuments.push(doc);
+    refreshFileList(allDocuments, currentDocId);
+    await switchDocument(doc.id);
+  } else {
+    const doc = await saveDocument({ name: trimmed, content: "", isMain: false });
+    allDocuments = await getAllDocuments();
+    refreshFileList(allDocuments, currentDocId);
+    await switchDocument(doc.id);
+  }
 }
 
 async function removeDocument(docId) {
   const doc = allDocuments.find((d) => d.id === docId);
   if (!doc || doc.isMain) return;
 
-  const ok = await confirm({
-    title: "Delete file?",
-    message: `Delete "${doc.name}"? This action cannot be undone.`,
-    confirmText: "Delete",
-    confirmStyle: "danger",
-  });
-  if (!ok) return;
-
-  await deleteDocument(docId);
-  allDocuments = await getAllDocuments();
+  if (isLocalFsMode()) {
+    const deleted = await deleteFromLocalFs(doc.name);
+    if (!deleted) return;
+    allDocuments = allDocuments.filter((d) => d.id !== docId);
+  } else {
+    await deleteDocument(docId);
+    allDocuments = await getAllDocuments();
+  }
 
   if (currentDocId === docId) {
     const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
-    currentDocId = mainDoc.id;
-    markdownInput.value = mainDoc.content;
-    updateCurrentDocLabel();
-    updatePreview();
+    if (mainDoc) {
+      currentDocId = mainDoc.id;
+      markdownInput.value = mainDoc.content;
+      updateCurrentDocLabel();
+      updatePreview();
+    } else {
+      currentDocId = null;
+      markdownInput.value = "";
+      updateCurrentDocLabel();
+      updatePreview({ skipSave: true });
+    }
   }
 
   refreshFileList(allDocuments, currentDocId);
@@ -447,16 +610,34 @@ async function renameDocument(docId, newName) {
     return;
   }
 
-  doc.name = newName;
-  await saveDocument(doc);
-  allDocuments = await getAllDocuments();
+  if (isLocalFsMode()) {
+    const oldId = doc.id;
+    const ok = await renameInLocalFs(doc.name, newName);
+    if (!ok) return;
+    doc.name = newName;
+    doc.id = localIdFor(newName);
+    if (currentDocId === oldId) {
+      currentDocId = doc.id;
+    }
+  } else {
+    doc.name = newName;
+    await saveDocument(doc);
+    allDocuments = await getAllDocuments();
+  }
   updateCurrentDocLabel();
   refreshFileList(allDocuments, currentDocId);
 }
 
 async function changeMainDocument(docId) {
-  await setMainDocument(docId);
-  allDocuments = await getAllDocuments();
+  if (isLocalFsMode()) {
+    const doc = allDocuments.find((d) => d.id === docId);
+    if (!doc) return;
+    for (const d of allDocuments) d.isMain = d.id === docId;
+    await changeMainInLocalFs(doc.name);
+  } else {
+    await setMainDocument(docId);
+    allDocuments = await getAllDocuments();
+  }
   refreshFileList(allDocuments, currentDocId);
   updatePreview();
 }
@@ -548,14 +729,20 @@ function updateMetricsUI(metrics) {
   `;
 }
 
-async function updatePreview() {
+async function updatePreview({ skipSave = false } = {}) {
   const md = markdownInput.value;
   charCount.textContent = `${md.length} chars`;
 
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = md;
-    saveDocument(currentDoc).catch(() => toast.error("Failed to save document"));
+    if (!skipSave) {
+      if (isLocalFsMode()) {
+        saveToLocalFs(currentDoc.name, md).catch(() => toast.error("Failed to save to disk"));
+      } else {
+        saveDocument(currentDoc).catch(() => toast.error("Failed to save document"));
+      }
+    }
   }
 
   if (!md.trim()) {
@@ -907,7 +1094,11 @@ async function handleExplorerDrop(files) {
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = markdownInput.value;
-    await saveDocument(currentDoc);
+    if (isLocalFsMode()) {
+      await saveToLocalFs(currentDoc.name, currentDoc.content);
+    } else {
+      await saveDocument(currentDoc);
+    }
   }
 
   let added = 0;
@@ -927,23 +1118,47 @@ async function handleExplorerDrop(files) {
 
       if (action === "replace") {
         existingDoc.content = content;
-        await saveDocument(existingDoc);
-        allDocuments = await getAllDocuments();
+        if (isLocalFsMode()) {
+          await saveToLocalFs(existingDoc.name, content);
+        } else {
+          await saveDocument(existingDoc);
+          allDocuments = await getAllDocuments();
+        }
         lastDocId = existingDoc.id;
         replaced++;
       } else if (action === "keep-both") {
         const newName = generateUniqueName(file.name, allDocuments);
-        const doc = await saveDocument({ name: newName, content, isMain: false });
-        allDocuments = await getAllDocuments();
-        lastDocId = doc.id;
+        if (isLocalFsMode()) {
+          const doc = await createInLocalFs(newName);
+          if (doc) {
+            doc.content = content;
+            await saveToLocalFs(newName, content);
+            allDocuments.push(doc);
+            lastDocId = doc.id;
+          }
+        } else {
+          const doc = await saveDocument({ name: newName, content, isMain: false });
+          allDocuments = await getAllDocuments();
+          lastDocId = doc.id;
+        }
         added++;
       } else {
         skipped++;
       }
     } else {
-      const doc = await saveDocument({ name: file.name, content, isMain: false });
-      allDocuments = await getAllDocuments();
-      lastDocId = doc.id;
+      if (isLocalFsMode()) {
+        const doc = await createInLocalFs(file.name);
+        if (doc) {
+          doc.content = content;
+          await saveToLocalFs(file.name, content);
+          allDocuments.push(doc);
+          lastDocId = doc.id;
+        }
+      } else {
+        const doc = await saveDocument({ name: file.name, content, isMain: false });
+        allDocuments = await getAllDocuments();
+        lastDocId = doc.id;
+      }
       added++;
     }
   }
@@ -974,7 +1189,11 @@ function loadFile(file) {
         const currentDoc = allDocuments.find((d) => d.id === currentDocId);
         if (currentDoc) {
           currentDoc.content = content;
-          await saveDocument(currentDoc);
+          if (isLocalFsMode()) {
+            await saveToLocalFs(currentDoc.name, content);
+          } else {
+            await saveDocument(currentDoc);
+          }
         }
         toast.success(`Content of "${currentDoc?.name || "document"}" updated`);
       }
@@ -1127,6 +1346,10 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     toggleSync();
     updateSyncToggleUI();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "O") {
+    e.preventDefault();
+    handleMountShortcut();
   }
 });
 
