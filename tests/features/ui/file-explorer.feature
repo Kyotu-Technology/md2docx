@@ -141,3 +141,15 @@ Feature: File explorer
     Then the preview should contain text "Before Include"
     And the preview should contain text "After Include"
     And the preview element containing "After Include" should have data-line "2"
+
+  Scenario: Clicking a preview link opens the target document
+    When I click the explorer toggle button
+    And I add a new document named "other.md"
+    And I click the document "main.md" in the file list
+    And the editor contains:
+      """
+      See [go](other.md) for details.
+      """
+    When the preview renders
+    And I click the preview link with href "other.md"
+    Then the current document name should be "other.md"
