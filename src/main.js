@@ -1287,10 +1287,43 @@ initIncludeAutocomplete(markdownInput, () => allDocuments);
 initDiagramActions(preview);
 
 preview.addEventListener("click", (e) => {
+  const link = e.target.closest("a[href]");
+  if (link && preview.contains(link)) {
+    const href = link.getAttribute("href") || "";
+    if (/^(https?:|mailto:|tel:|#)/i.test(href)) return;
+    const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+    const basePath = currentDoc?.name || "";
+    const target = resolveDocumentPath(basePath, href.split("#")[0].split("?")[0]);
+    const targetDoc = allDocuments.find((d) => d.name === target);
+    if (targetDoc) {
+      e.preventDefault();
+      switchDocument(targetDoc.id);
+    }
+    return;
+  }
   const placeholder = e.target.closest("[data-action='insert-frontmatter']");
   if (!placeholder) return;
   insertFrontmatterTemplate();
 });
+
+function resolveDocumentPath(basePath, relativeUrl) {
+  let url;
+  try {
+    url = decodeURIComponent(relativeUrl);
+  } catch {
+    url = relativeUrl;
+  }
+  if (url.startsWith("/")) return url.slice(1);
+  const baseDir = basePath.includes("/") ? basePath.split("/").slice(0, -1) : [];
+  const parts = url.split("/");
+  const stack = [...baseDir];
+  for (const p of parts) {
+    if (p === "..") stack.pop();
+    else if (p === "." || p === "") continue;
+    else stack.push(p);
+  }
+  return stack.join("/");
+}
 
 function insertFrontmatterTemplate() {
   const current = markdownInput.value;

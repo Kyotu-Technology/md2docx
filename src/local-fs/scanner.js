@@ -31,9 +31,10 @@ export async function scanDirectory(dirHandle, options = {}) {
   async function walk(handle, prefix) {
     for await (const [name, entry] of handle.entries()) {
       if (fileMap.size >= maxFiles) return;
+      if (name.startsWith(".")) continue;
 
       if (entry.kind === "directory") {
-        if (ignored.has(name) || name.startsWith(".")) continue;
+        if (ignored.has(name)) continue;
         await walk(entry, prefix ? `${prefix}/${name}` : name);
       } else if (entry.kind === "file") {
         if (!allowed.has(getExtension(name))) continue;

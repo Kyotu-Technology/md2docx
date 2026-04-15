@@ -10,6 +10,8 @@
 
 ### Fixes
 - **External change feedback loop** - When a file was modified on disk and the app detected the change, `updatePreview()` would write the same content back to disk, causing the external editor to see "file changed on disk" warnings. Fixed by adding `skipSave` parameter to `updatePreview()` for all code paths where content originates from disk.
+- **Preview fixes** - Table rows with mismatched cell counts pad to the max column count; inline code spans no longer strip `<svg>`-like HTML tags; markdown link URLs with parentheses parse correctly; clicking a preview link to a document in the tree opens it in the editor instead of a blank tab.
+- **Mounted filesystem hygiene** - Dot-prefixed files (e.g. `.env`) are now skipped during scan, matching the existing behavior for dot-directories.
 
 ---
 

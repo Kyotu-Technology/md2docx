@@ -106,3 +106,21 @@ Feature: Text formatting in preview
     And the table should have 3 columns
     And row 2 should have 3 cells
     And row 3 should have 3 cells
+
+  Scenario: Inline code preserves HTML-like tags
+    Given the editor contains:
+      """
+      The `<svg>` tag inside without `</svg>` in the middle should stay intact.
+      """
+    When the preview renders
+    Then the preview should contain text "<svg>"
+    And the preview should contain text "</svg>"
+
+  Scenario: Link URL with parentheses parses correctly
+    Given the editor contains:
+      """
+      See [docs](../spec/Appendix%202%20(PROSERV-0043).md) for details.
+      """
+    When the preview renders
+    Then the preview should contain a link with href "../spec/Appendix%202%20(PROSERV-0043).md"
+    And the preview should contain text "docs"
