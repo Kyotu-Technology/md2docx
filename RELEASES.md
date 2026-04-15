@@ -7,11 +7,13 @@
 
 ### Changed
 - **File explorer redesign** - Sidebar is now a push-based dark panel matching the app's header/footer chrome, instead of a white overlay that covered the editor. In local-fs mode, files are grouped into collapsible folders (one level deep) with chevron toggle, replacing the star-based main document indicator. Delete confirmation is now inline (checkmark/X buttons with 4-second auto-cancel) instead of a modal dialog. Filenames show a tooltip with the full path on hover. Width increased from 200px to 220px.
+- **Scope-aware export** - The export dropdown now exports the file you are currently viewing, not always the document marked as main. A scope selector at the top of the dropdown lets you choose between "This file only" and "Main + @includes" (with live count of actual `@include` references in the main document). Default is context-aware: editing the main document defaults to the main + includes scope (preserving the previous behavior for authors composing multi-part documents), editing any other file defaults to "This file only". The selector is hidden when only one document exists. Fixes the asymmetry where live preview showed the current file but export always produced the main document.
 
 ### Fixes
 - **External change feedback loop** - When a file was modified on disk and the app detected the change, `updatePreview()` would write the same content back to disk, causing the external editor to see "file changed on disk" warnings. Fixed by adding `skipSave` parameter to `updatePreview()` for all code paths where content originates from disk.
 - **Preview fixes** - Table rows with mismatched cell counts pad to the max column count; inline code spans no longer strip `<svg>`-like HTML tags; markdown link URLs with parentheses parse correctly; clicking a preview link to a document in the tree opens it in the editor instead of a blank tab.
 - **Mounted filesystem hygiene** - Dot-prefixed files (e.g. `.env`) are now skipped during scan, matching the existing behavior for dot-directories.
+- **Export toast feedback** - Successful exports now surface a toast listing the generated filenames (previously only the status bar was updated, which hid before completion was obvious).
 
 ---
 
