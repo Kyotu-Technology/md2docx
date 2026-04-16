@@ -1,9 +1,11 @@
 import { escapeHtml } from "../utils.js";
+import { isLocalFsMode } from "../local-fs/index.js";
 
 let explorerPanel = null;
 let fileListEl = null;
 let callbacks = {};
 let _isOpen = false;
+const collapsedFolders = new Set();
 
 export function initFileExplorer(container, cbs) {
   explorerPanel = container;
@@ -48,22 +50,100 @@ export function initFileExplorer(container, cbs) {
   } catch {}
 
   if (_isOpen) {
-    explorerPanel.style.width = "200px";
-    explorerPanel.style.minWidth = "200px";
-    explorerPanel.style.pointerEvents = "";
+    explorerPanel.style.width = "220px";
+    explorerPanel.style.minWidth = "220px";
   }
 }
 
 export function refreshFileList(documents, activeId) {
   if (!fileListEl) return;
-
   fileListEl.innerHTML = "";
 
-  for (const doc of documents) {
-    const item = document.createElement("div");
-    item.className = `explorer-item${doc.id === activeId ? " active" : ""}`;
-    item.dataset.id = doc.id;
+  if (isLocalFsMode()) {
+    renderFolderView(documents, activeId);
+  } else {
+    renderFlatView(documents, activeId);
+  }
+}
 
+function renderFlatView(documents, activeId) {
+  collapsedFolders.clear();
+  for (const doc of documents) {
+    const item = createFileItem(doc, activeId, { showStar: true, showHint: !doc.isMain });
+    fileListEl.appendChild(item);
+  }
+}
+
+function renderFolderView(documents, activeId) {
+  const rootDocs = [];
+  const folders = new Map();
+
+  for (const doc of documents) {
+    const slashIdx = doc.name.indexOf("/");
+    if (slashIdx === -1) {
+      rootDocs.push(doc);
+    } else {
+      const folder = doc.name.substring(0, slashIdx);
+      if (!folders.has(folder)) folders.set(folder, []);
+      folders.get(folder).push(doc);
+    }
+  }
+
+  for (const doc of rootDocs) {
+    const item = createFileItem(doc, activeId, { showStar: false, showHint: false });
+    fileListEl.appendChild(item);
+  }
+
+  const sortedFolders = [...folders.keys()].sort((a, b) => a.localeCompare(b));
+  for (const folder of sortedFolders) {
+    const docs = folders.get(folder);
+    const isCollapsed = collapsedFolders.has(folder);
+
+    const header = document.createElement("div");
+    header.className = `explorer-folder${isCollapsed ? " collapsed" : ""}`;
+    header.innerHTML = `
+      <svg class="folder-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+      <span style="flex:1">${escapeHtml(folder)}</span>
+      <span class="folder-count">${docs.length}</span>
+    `;
+
+    const filesContainer = document.createElement("div");
+    filesContainer.className = `explorer-folder-files${isCollapsed ? " collapsed" : ""}`;
+    for (const doc of docs) {
+      const displayName = doc.name.substring(folder.length + 1);
+      const item = createFileItem(doc, activeId, {
+        showStar: false,
+        showHint: false,
+        displayName,
+        indent: true,
+      });
+      filesContainer.appendChild(item);
+    }
+
+    header.addEventListener("click", () => {
+      if (collapsedFolders.has(folder)) {
+        collapsedFolders.delete(folder);
+      } else {
+        collapsedFolders.add(folder);
+      }
+      header.classList.toggle("collapsed");
+      filesContainer.classList.toggle("collapsed");
+    });
+
+    fileListEl.appendChild(header);
+    fileListEl.appendChild(filesContainer);
+  }
+}
+
+function createFileItem(doc, activeId, opts = {}) {
+  const { showStar = true, showHint = false, displayName, indent = false } = opts;
+  const item = document.createElement("div");
+  item.className = `explorer-item${doc.id === activeId ? " active" : ""}`;
+  item.dataset.id = doc.id;
+  if (indent) item.style.paddingLeft = "24px";
+
+  if (showStar) {
     const star = document.createElement("span");
     star.className = `main-star${doc.isMain ? " is-main" : ""}`;
     star.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="${doc.isMain ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -72,46 +152,97 @@ export function refreshFileList(documents, activeId) {
       e.stopPropagation();
       if (!doc.isMain) callbacks.onSetMain?.(doc.id);
     });
-
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "doc-name";
-    nameSpan.textContent = doc.name;
-    nameSpan.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      startRename(item, doc);
-    });
-
-    const actions = document.createElement("div");
-    actions.className = "item-actions";
-
-    if (!doc.isMain) {
-      const deleteBtn = document.createElement("button");
-      deleteBtn.title = "Delete";
-      deleteBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
-      deleteBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        callbacks.onDelete?.(doc.id);
-      });
-      actions.appendChild(deleteBtn);
-    }
-
     item.appendChild(star);
-    item.appendChild(nameSpan);
-    item.appendChild(actions);
-
-    if (!doc.isMain) {
-      const hint = document.createElement("span");
-      hint.className = "include-hint";
-      hint.textContent = `@include(${doc.name})`;
-      item.appendChild(hint);
-    }
-
-    item.addEventListener("click", () => {
-      callbacks.onSelect?.(doc.id);
-    });
-
-    fileListEl.appendChild(item);
   }
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "doc-name";
+  nameSpan.textContent = displayName || doc.name;
+  nameSpan.title = doc.name;
+  nameSpan.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    startRename(item, doc);
+  });
+  item.appendChild(nameSpan);
+
+  const actions = document.createElement("div");
+  actions.className = "item-actions";
+  if (!doc.isMain) {
+    const deleteBtn = document.createElement("button");
+    deleteBtn.title = "Delete";
+    deleteBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      startDeleteConfirm(item, doc);
+    });
+    actions.appendChild(deleteBtn);
+  }
+  item.appendChild(actions);
+
+  if (showHint && !doc.isMain) {
+    const hint = document.createElement("span");
+    hint.className = "include-hint";
+    hint.textContent = `@include(${doc.name})`;
+    item.appendChild(hint);
+  }
+
+  item.addEventListener("click", () => {
+    callbacks.onSelect?.(doc.id);
+  });
+
+  return item;
+}
+
+function startDeleteConfirm(itemEl, doc) {
+  if (itemEl.querySelector(".delete-confirm")) return;
+
+  const nameSpan = itemEl.querySelector(".doc-name");
+  const starEl = itemEl.querySelector(".main-star");
+  const actionsEl = itemEl.querySelector(".item-actions");
+  const hintEl = itemEl.querySelector(".include-hint");
+
+  if (nameSpan) nameSpan.style.display = "none";
+  if (starEl) starEl.style.display = "none";
+  if (actionsEl) actionsEl.style.display = "none";
+  if (hintEl) hintEl.style.display = "none";
+  itemEl.classList.add("confirm-delete");
+
+  const confirmEl = document.createElement("div");
+  confirmEl.className = "delete-confirm";
+  confirmEl.innerHTML = `
+    <span>Delete?</span>
+    <button class="confirm-yes" title="Confirm delete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>
+    <button class="confirm-no" title="Cancel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  `;
+  itemEl.appendChild(confirmEl);
+
+  const timeout = setTimeout(() => restore(), 4000);
+
+  function restore() {
+    clearTimeout(timeout);
+    if (!itemEl.isConnected) return;
+    confirmEl.remove();
+    itemEl.classList.remove("confirm-delete");
+    if (nameSpan) nameSpan.style.display = "";
+    if (starEl) starEl.style.display = "";
+    if (actionsEl) actionsEl.style.display = "";
+    if (hintEl) hintEl.style.display = "";
+  }
+
+  confirmEl.querySelector(".confirm-yes").addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearTimeout(timeout);
+    callbacks.onDelete?.(doc.id);
+  });
+
+  confirmEl.querySelector(".confirm-no").addEventListener("click", (e) => {
+    e.stopPropagation();
+    restore();
+  });
 }
 
 function startRename(itemEl, doc) {
@@ -211,13 +342,11 @@ export function toggleExplorer(forceState) {
   _isOpen = forceState !== undefined ? forceState : !_isOpen;
 
   if (_isOpen) {
-    explorerPanel.style.width = "200px";
-    explorerPanel.style.minWidth = "200px";
-    explorerPanel.style.pointerEvents = "";
+    explorerPanel.style.width = "220px";
+    explorerPanel.style.minWidth = "220px";
   } else {
     explorerPanel.style.width = "0";
     explorerPanel.style.minWidth = "0";
-    explorerPanel.style.pointerEvents = "none";
   }
 
   try {

@@ -133,3 +133,13 @@ Then("row {int} should have {int} cells", async ({ page }, rowNum, expectedCells
   );
   await expect(cells).toHaveCount(expectedCells);
 });
+
+Then("the preview should contain a link with href {string}", async ({ page }, href) => {
+  const link = page.locator(`#preview a[href="${href}"]`);
+  await expect(link).toHaveCount(1);
+});
+
+When("I click the preview link with href {string}", async ({ page }, href) => {
+  await page.locator(`#preview a[href="${href}"]`).click();
+  await page.waitForTimeout(200);
+});

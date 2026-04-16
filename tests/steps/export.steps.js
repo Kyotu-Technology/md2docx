@@ -217,3 +217,39 @@ Then("the DOCX should contain an image with correct aspect ratio", async ({}) =>
 
   expect(Math.abs(docxRatio - pngRatio)).toBeLessThan(0.02);
 });
+
+// --- Export scope selection ---
+
+When("I open the export dropdown", async ({ page }) => {
+  await page.locator("#generateBtn").click();
+  await page.locator("#formatDropdown").waitFor({ state: "visible" });
+});
+
+Then("the export scope selector should be visible", async ({ page }) => {
+  await expect(page.locator("#exportScopeSection")).toBeVisible();
+});
+
+Then("the export scope selector should not be visible", async ({ page }) => {
+  await expect(page.locator("#exportScopeSection")).toBeHidden();
+});
+
+Then("the export scope {string} should be selected by default", async ({ page }, scope) => {
+  await expect(page.locator(`input[name="exportScope"][value="${scope}"]`)).toBeChecked();
+});
+
+When("I choose the export scope {string}", async ({ page }, scope) => {
+  await page.locator(`input[name="exportScope"][value="${scope}"]`).check();
+});
+
+Then(
+  "the export scope {string} sublabel should contain {string}",
+  async ({ page }, scope, text) => {
+    const label = page.locator(`input[name="exportScope"][value="${scope}"]`).locator("..");
+    await expect(label).toContainText(text);
+  }
+);
+
+Then("the DOCX text content should not contain {string}", async ({}, expectedText) => {
+  const text = await docxValidator.toText(lastDownloadBuffer);
+  expect(text).not.toContain(expectedText);
+});
