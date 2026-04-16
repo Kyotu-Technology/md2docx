@@ -277,7 +277,9 @@ themeSelect.addEventListener("change", () => {
 });
 
 generateBtn.addEventListener("click", () => {
+  const wasHidden = formatDropdown.classList.contains("hidden");
   formatDropdown.classList.toggle("hidden");
+  if (wasHidden) updateExportScopeOptions();
 });
 
 document.addEventListener("click", (e) => {
@@ -289,10 +291,62 @@ document.addEventListener("click", (e) => {
 document.querySelectorAll(".format-option").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const format = btn.dataset.format;
+    const scopeInput = formatDropdown.querySelector('input[name="exportScope"]:checked');
+    const scope = scopeInput ? scopeInput.value : null;
     formatDropdown.classList.add("hidden");
-    await generateDocument(format);
+    await generateDocument(format, scope);
   });
 });
+
+function getDefaultScope() {
+  if (allDocuments.length <= 1) return "main";
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  return currentDoc?.isMain ? "main" : "current";
+}
+
+function updateExportScopeOptions() {
+  const section = document.getElementById("exportScopeSection");
+  const container = document.getElementById("exportScopeOptions");
+  if (!section || !container) return;
+
+  if (allDocuments.length <= 1) {
+    section.classList.add("hidden");
+    container.innerHTML = "";
+    return;
+  }
+
+  section.classList.remove("hidden");
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  const currentName = currentDoc ? escapeHtml(currentDoc.name) : "current file";
+  const mainDoc = allDocuments.find((d) => d.isMain);
+  const mainName = mainDoc ? escapeHtml(mainDoc.name) : "main document";
+  const mainSource = mainDoc?.id === currentDocId ? markdownInput.value : mainDoc?.content || "";
+  const includeCount = (mainSource.match(/^@include\((.+)\)$/gm) || []).length;
+  const mainSubLabel =
+    includeCount > 0
+      ? `Main + ${includeCount} @include${includeCount === 1 ? "" : "s"}`
+      : "Main document (no @includes)";
+  const defaultScope = getDefaultScope();
+  const currentChecked = defaultScope === "current" ? "checked" : "";
+  const mainChecked = defaultScope === "main" ? "checked" : "";
+
+  container.innerHTML = `
+    <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-700 cursor-pointer">
+      <input type="radio" name="exportScope" value="current" ${currentChecked} class="accent-blue-500" />
+      <div class="min-w-0">
+        <div class="text-xs text-white truncate">${currentName}</div>
+        <div class="text-[10px] text-gray-500">This file only</div>
+      </div>
+    </label>
+    <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-700 cursor-pointer">
+      <input type="radio" name="exportScope" value="main" ${mainChecked} class="accent-blue-500" />
+      <div class="min-w-0">
+        <div class="text-xs text-white truncate">${mainName}</div>
+        <div class="text-[10px] text-gray-500">${mainSubLabel}</div>
+      </div>
+    </label>
+  `;
+}
 
 let isResizing = false;
 resizer.addEventListener("mousedown", () => {
@@ -920,50 +974,64 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
   preview.appendChild(iframe);
 }
 
-async function generateDocument(format = "docx") {
+async function generateDocument(format = "docx", scope = null) {
+  const effectiveScope = scope || getDefaultScope();
   const mainDoc = allDocuments.find((d) => d.isMain);
   if (mainDoc && mainDoc.id === currentDocId) {
     mainDoc.content = markdownInput.value;
   }
-  const mainContent = mainDoc ? mainDoc.content : markdownInput.value;
 
-  if (!mainContent.trim()) {
-    toast.warning("Main document is empty!");
+  let rootContent;
+  if (effectiveScope === "current") {
+    rootContent = markdownInput.value;
+  } else {
+    rootContent = mainDoc ? mainDoc.content : markdownInput.value;
+  }
+
+  if (!rootContent.trim()) {
+    toast.warning("Document is empty!");
     return;
   }
 
   generateBtn.disabled = true;
   try {
     showStatus("Parsing...");
-    let exportMd = mainContent;
+    let exportMd = rootContent;
     if (allDocuments.length > 1) {
       const docsMap = new Map(allDocuments.map((d) => [d.name, d.content]));
-      exportMd = resolveIncludes(mainContent, docsMap);
+      exportMd = resolveIncludes(rootContent, docsMap);
     }
     const { metadata, body } = parseMarkdown(exportMd);
     const elements = parseBodyToElements(body);
     const themeId = themeSelect.value;
     const filename = metadata.title || "document";
+    const exported = [];
 
     if (format === "docx" || format === "all") {
       showStatus(`Generating DOCX (${elements.length} elements)...`);
       const docxBlob = await generateDocxBlob(metadata, elements, themeId, exportOptions);
       downloadBlob(docxBlob, `${filename}.docx`);
+      exported.push(`${filename}.docx`);
     }
 
     if (format === "pdf" || format === "all") {
       showStatus(`Generating PDF (${elements.length} elements)...`);
       const pdfBlob = await generatePdfBlob(metadata, elements, themeId, exportOptions);
       downloadBlob(pdfBlob, `${filename}.pdf`);
+      exported.push(`${filename}.pdf`);
     }
 
     if (format === "html" || format === "all") {
       showStatus(`Generating HTML (${elements.length} elements)...`);
       const htmlBlob = await generateHtmlBlob(elements, metadata, themeId);
       downloadBlob(htmlBlob, `${filename}.html`);
+      exported.push(`${filename}.html`);
     }
 
     hideStatus();
+    if (exported.length) {
+      toast.success(`Exported ${exported.join(", ")}`);
+    }
   } catch (err) {
     console.error(err);
     hideStatus();
@@ -1287,10 +1355,43 @@ initIncludeAutocomplete(markdownInput, () => allDocuments);
 initDiagramActions(preview);
 
 preview.addEventListener("click", (e) => {
+  const link = e.target.closest("a[href]");
+  if (link && preview.contains(link)) {
+    const href = link.getAttribute("href") || "";
+    if (/^(https?:|mailto:|tel:|#)/i.test(href)) return;
+    const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+    const basePath = currentDoc?.name || "";
+    const target = resolveDocumentPath(basePath, href.split("#")[0].split("?")[0]);
+    const targetDoc = allDocuments.find((d) => d.name === target);
+    if (targetDoc) {
+      e.preventDefault();
+      switchDocument(targetDoc.id);
+    }
+    return;
+  }
   const placeholder = e.target.closest("[data-action='insert-frontmatter']");
   if (!placeholder) return;
   insertFrontmatterTemplate();
 });
+
+function resolveDocumentPath(basePath, relativeUrl) {
+  let url;
+  try {
+    url = decodeURIComponent(relativeUrl);
+  } catch {
+    url = relativeUrl;
+  }
+  if (url.startsWith("/")) return url.slice(1);
+  const baseDir = basePath.includes("/") ? basePath.split("/").slice(0, -1) : [];
+  const parts = url.split("/");
+  const stack = [...baseDir];
+  for (const p of parts) {
+    if (p === "..") stack.pop();
+    else if (p === "." || p === "") continue;
+    else stack.push(p);
+  }
+  return stack.join("/");
+}
 
 function insertFrontmatterTemplate() {
   const current = markdownInput.value;

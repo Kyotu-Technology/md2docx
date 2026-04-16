@@ -198,3 +198,21 @@ Feature: Local filesystem sync
     Then the document "gone.md" shows an inline delete confirmation
     When I delete the document "gone.md"
     Then the document "gone.md" should not be listed
+
+  Scenario: Hidden dotfiles and dot-directories are skipped during scan
+    Given the local filesystem mock is set up with files:
+      """
+      {
+        "visible.md": "visible",
+        ".hidden.md": "should be ignored",
+        ".env": "SECRET=x",
+        ".git/config": "[core]"
+      }
+      """
+    And the application is loaded
+    When I click the explorer toggle button
+    And I click the mount folder button
+    Then the local-fs status shows connected
+    And the file explorer shows the local file "visible.md"
+    And the file explorer does not show the local file ".hidden.md"
+    And the file explorer does not show the local file ".env"
