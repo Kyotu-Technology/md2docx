@@ -147,6 +147,25 @@
         background: #94a3b8;
       }
 
+      .scrollbar-dark {
+        scrollbar-width: thin;
+        scrollbar-color: #374151 transparent;
+      }
+      .scrollbar-dark::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .scrollbar-dark::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .scrollbar-dark::-webkit-scrollbar-thumb {
+        background: #374151;
+        border-radius: 3px;
+      }
+      .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+        background: #4b5563;
+      }
+
       .resizer {
         width: 6px;
         background: #e5e7eb;
@@ -375,32 +394,38 @@
         gap: 6px;
         padding: 5px 10px;
         cursor: pointer;
-        font-size: 12px;
-        color: #4b5563;
+        font-size: 13px;
+        color: #9ca3af;
         transition: background 0.1s;
         position: relative;
+        border-left: 2px solid transparent;
       }
       .explorer-item:hover {
-        background: #e5e7eb;
+        background: rgba(255, 255, 255, 0.05);
       }
       .explorer-item.active {
-        background: #dbeafe;
-        color: #1d4ed8;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
         font-weight: 500;
+        border-left: 2px solid #f97c00;
       }
       .explorer-item .main-star {
-        color: #f97c00;
+        color: #4b5563;
         font-size: 11px;
         flex-shrink: 0;
         cursor: pointer;
-        opacity: 0.3;
-        transition: opacity 0.15s;
+        opacity: 0.5;
+        transition:
+          opacity 0.15s,
+          color 0.15s;
       }
       .explorer-item .main-star:hover {
-        opacity: 0.7;
+        opacity: 0.8;
+        color: #f97c00;
       }
       .explorer-item .main-star.is-main {
         opacity: 1;
+        color: #f97c00;
       }
       .explorer-item .doc-name {
         flex: 1;
@@ -418,14 +443,14 @@
       }
       .explorer-item .item-actions button {
         padding: 2px;
-        color: #9ca3af;
+        color: #4b5563;
         border-radius: 3px;
         transition:
           color 0.1s,
           background 0.1s;
       }
       .explorer-item .item-actions button:hover {
-        color: #ef4444;
+        color: #f87171;
         background: rgba(239, 68, 68, 0.1);
       }
       .explorer-item .inline-rename {
@@ -435,19 +460,105 @@
         border: 1px solid #f97c00;
         border-radius: 3px;
         outline: none;
-        background: white;
+        background: #1f2937;
+        color: #ffffff;
       }
       .explorer-item .include-hint {
         font-size: 10px;
-        color: #9ca3af;
+        color: #4b5563;
         display: none;
         white-space: nowrap;
       }
       .explorer-item:hover .include-hint {
         display: block;
       }
+      .explorer-item.confirm-delete {
+        background: rgba(239, 68, 68, 0.08);
+      }
+      .delete-confirm {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        font-size: 12px;
+        color: #f87171;
+      }
+      .delete-confirm button {
+        padding: 2px;
+        border-radius: 3px;
+        color: #4b5563;
+        transition: color 0.1s;
+      }
+      .delete-confirm .confirm-yes:hover {
+        color: #10b981;
+      }
+      .delete-confirm .confirm-no:hover {
+        color: #9ca3af;
+      }
+      .explorer-folder {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px 4px;
+        cursor: pointer;
+        font-size: 12px;
+        color: #6b7280;
+        user-select: none;
+        transition: color 0.1s;
+      }
+      .explorer-folder:hover {
+        color: #9ca3af;
+      }
+      .explorer-folder .folder-chevron {
+        flex-shrink: 0;
+        transition: transform 0.15s;
+      }
+      .explorer-folder.collapsed .folder-chevron {
+        transform: rotate(-90deg);
+      }
+      .explorer-folder .folder-count {
+        font-size: 10px;
+        color: #4b5563;
+        margin-left: auto;
+      }
+      .explorer-folder-files.collapsed {
+        display: none;
+      }
+      .local-fs-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+      .local-fs-dot--connected {
+        background: #10b981;
+        box-shadow: 0 0 4px #10b98180;
+      }
+      .local-fs-dot--syncing {
+        background: #f97c00;
+        animation: pulse-dot 1.2s ease-in-out infinite;
+      }
+      .local-fs-dot--error {
+        background: #ef4444;
+        box-shadow: 0 0 4px #ef444480;
+      }
+      @keyframes pulse-dot {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(0.8);
+        }
+      }
+      .explorer-local-header {
+        border-bottom-color: #f97c00 !important;
+      }
       #explorerPanel.explorer-dragover {
-        background: #fffaf5;
+        background: rgba(249, 124, 0, 0.05);
         box-shadow: inset 0 0 0 2px #f97c00;
       }
       #explorerPanel.explorer-dragover #fileList::after {
@@ -632,11 +743,17 @@
             </button>
             <div
               id="formatDropdown"
-              class="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl hidden z-50 min-w-[140px]"
+              class="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl hidden z-50 min-w-[220px]"
             >
+              <div id="exportScopeSection" class="hidden border-b border-gray-700 px-2 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-gray-500 px-2 pb-1">
+                  Scope
+                </div>
+                <div id="exportScopeOptions"></div>
+              </div>
               <button
                 data-format="docx"
-                class="format-option w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-t-lg flex items-center gap-2"
+                class="format-option w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
               >
                 <svg
                   class="w-4 h-4 text-blue-400"
@@ -765,56 +882,75 @@
       </div>
     </header>
 
-    <main class="flex-1 flex flex-col lg:flex-row min-h-0 relative">
+    <main class="flex-1 flex flex-col lg:flex-row min-h-0">
       <div
         id="explorerPanel"
-        class="hidden lg:flex flex-col min-h-0 bg-white border-r border-gray-200 overflow-hidden absolute left-0 top-0 bottom-0 z-30 shadow-lg"
+        class="hidden lg:flex flex-col min-h-0 bg-[#0f0f0f] border-r border-gray-800 overflow-hidden"
         style="
           width: 0;
           min-width: 0;
-          pointer-events: none;
           transition:
-            width 0.2s ease,
-            min-width 0.2s ease,
-            box-shadow 0.2s ease;
+            width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+            min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         "
       >
-        <div
-          class="px-3 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0"
-        >
-          <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Files</span>
-          <div class="flex items-center gap-1">
-            <button
-              id="addDocBtn"
-              class="text-gray-400 hover:text-kyotu-orange transition-colors p-0.5"
-              title="New document"
+        <div class="flex flex-col min-h-0 h-full" style="width: 220px; min-width: 220px">
+          <div
+            id="explorerHeader"
+            class="px-3 py-2 bg-[#0f0f0f] border-b border-gray-800 flex items-center justify-between shrink-0"
+          >
+            <span
+              id="explorerHeaderLabel"
+              class="text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >Files</span
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            </button>
-            <button
-              id="explorerClose"
-              class="text-gray-400 hover:text-gray-600 transition-colors p-0.5"
-              title="Close (Ctrl+B)"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+            <div class="flex items-center gap-1">
+              <button
+                id="mountFolderBtn"
+                class="hidden text-gray-500 hover:text-kyotu-orange transition-colors p-0.5"
+                title="Mount local folder (Ctrl+Shift+O)"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
+                </svg>
+              </button>
+              <button
+                id="addDocBtn"
+                class="text-gray-500 hover:text-kyotu-orange transition-colors p-0.5"
+                title="New document"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              </button>
+              <button
+                id="explorerClose"
+                class="text-gray-500 hover:text-white transition-colors p-0.5"
+                title="Close (Ctrl+B)"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
+          <div id="fileList" class="flex-1 overflow-y-auto scrollbar-dark"></div>
         </div>
-        <div id="fileList" class="flex-1 overflow-y-auto scrollbar-thin"></div>
       </div>
 
       <div id="editorPanel" class="flex flex-col min-h-0" style="flex: 1 1 50%">
@@ -932,6 +1068,7 @@
         <span>© 2026 KYOTU Technology</span>
         <span class="text-gray-700">•</span>
         <span id="appVersion">__APP_VERSION__</span>
+        <span id="localFsStatus" class="hidden"></span>
       </div>
       <div class="flex items-center gap-3 text-gray-500">
         <div class="flex items-center gap-1">
@@ -957,6 +1094,12 @@
             >Ctrl+Shift+L</kbd
           >
           <span class="hidden sm:inline text-[10px]">share</span>
+        </div>
+        <div id="mountShortcutHint" class="hidden items-center gap-1">
+          <kbd class="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono text-[10px]"
+            >Ctrl+Shift+O</kbd
+          >
+          <span class="hidden sm:inline text-[10px]">folder</span>
         </div>
         <div class="flex items-center gap-1">
           <kbd class="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono text-[10px]"
