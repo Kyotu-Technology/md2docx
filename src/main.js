@@ -10,7 +10,7 @@ import { openTemplateManager } from "./template-manager/index.js";
 import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
-import { toast, confirm, conflictDialog } from "./notifications/index.js";
+import { toast, conflictDialog } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 import { initDiagramActions } from "./diagram-actions.js";
@@ -30,6 +30,21 @@ import {
 } from "./file-explorer/ui.js";
 import { initIncludeAutocomplete } from "./file-explorer/autocomplete.js";
 import { openShareDialog, isShareFragment } from "./sharing/index.js";
+import {
+  isLocalFsMode,
+  getStorageMode,
+  setCallbacks as setLocalFsCallbacks,
+  saveToLocalFs,
+  createInLocalFs,
+  deleteFromLocalFs,
+  renameInLocalFs,
+  changeMainInLocalFs,
+  restoreFromPersistedHandle,
+  fileToDocument,
+  localIdFor,
+  initMountUI,
+  handleMountShortcut,
+} from "./local-fs/index.js";
 
 export const EXAMPLE_MD = `---
 title: "Technical Documentation"
@@ -262,7 +277,9 @@ themeSelect.addEventListener("change", () => {
 });
 
 generateBtn.addEventListener("click", () => {
+  const wasHidden = formatDropdown.classList.contains("hidden");
   formatDropdown.classList.toggle("hidden");
+  if (wasHidden) updateExportScopeOptions();
 });
 
 document.addEventListener("click", (e) => {
@@ -274,10 +291,62 @@ document.addEventListener("click", (e) => {
 document.querySelectorAll(".format-option").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const format = btn.dataset.format;
+    const scopeInput = formatDropdown.querySelector('input[name="exportScope"]:checked');
+    const scope = scopeInput ? scopeInput.value : null;
     formatDropdown.classList.add("hidden");
-    await generateDocument(format);
+    await generateDocument(format, scope);
   });
 });
+
+function getDefaultScope() {
+  if (allDocuments.length <= 1) return "main";
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  return currentDoc?.isMain ? "main" : "current";
+}
+
+function updateExportScopeOptions() {
+  const section = document.getElementById("exportScopeSection");
+  const container = document.getElementById("exportScopeOptions");
+  if (!section || !container) return;
+
+  if (allDocuments.length <= 1) {
+    section.classList.add("hidden");
+    container.innerHTML = "";
+    return;
+  }
+
+  section.classList.remove("hidden");
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  const currentName = currentDoc ? escapeHtml(currentDoc.name) : "current file";
+  const mainDoc = allDocuments.find((d) => d.isMain);
+  const mainName = mainDoc ? escapeHtml(mainDoc.name) : "main document";
+  const mainSource = mainDoc?.id === currentDocId ? markdownInput.value : mainDoc?.content || "";
+  const includeCount = (mainSource.match(/^@include\((.+)\)$/gm) || []).length;
+  const mainSubLabel =
+    includeCount > 0
+      ? `Main + ${includeCount} @include${includeCount === 1 ? "" : "s"}`
+      : "Main document (no @includes)";
+  const defaultScope = getDefaultScope();
+  const currentChecked = defaultScope === "current" ? "checked" : "";
+  const mainChecked = defaultScope === "main" ? "checked" : "";
+
+  container.innerHTML = `
+    <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-700 cursor-pointer">
+      <input type="radio" name="exportScope" value="current" ${currentChecked} class="accent-blue-500" />
+      <div class="min-w-0">
+        <div class="text-xs text-white truncate">${currentName}</div>
+        <div class="text-[10px] text-gray-500">This file only</div>
+      </div>
+    </label>
+    <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-700 cursor-pointer">
+      <input type="radio" name="exportScope" value="main" ${mainChecked} class="accent-blue-500" />
+      <div class="min-w-0">
+        <div class="text-xs text-white truncate">${mainName}</div>
+        <div class="text-[10px] text-gray-500">${mainSubLabel}</div>
+      </div>
+    </label>
+  `;
+}
 
 let isResizing = false;
 resizer.addEventListener("mousedown", () => {
@@ -348,6 +417,22 @@ async function initThemeSelect() {
 }
 
 async function initDocuments() {
+  setLocalFsCallbacks({
+    onDocuments: loadDocuments,
+    onExternalChange: handleExternalFileChange,
+    onUnmount: handleUnmount,
+  });
+
+  if (getStorageMode() === "local-fs") {
+    const docs = await restoreFromPersistedHandle();
+    if (docs && docs.length > 0) {
+      loadDocuments(docs);
+      initMountUI();
+      return;
+    }
+    toast.info("Could not restore local folder — using saved documents");
+  }
+
   await migrateFromLocalStorage();
   allDocuments = await getAllDocuments();
 
@@ -356,16 +441,131 @@ async function initDocuments() {
     allDocuments = await getAllDocuments();
   }
 
-  const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
-  currentDocId = mainDoc.id;
-  markdownInput.value = mainDoc.content;
-  updateCurrentDocLabel();
-  refreshFileList(allDocuments, currentDocId);
-  updatePreview();
+  loadDocuments(allDocuments);
+  initMountUI();
 
   if (isShareFragment(window.location.hash)) {
     const { handleShareFragment } = await import("./sharing/import-handler.js");
     await handleShareFragment(window.location.hash, importSharedFiles);
+  }
+}
+
+function loadDocuments(docs) {
+  allDocuments = docs;
+
+  if (currentDocId) {
+    const stillThere = allDocuments.find((d) => d.id === currentDocId);
+    if (stillThere) {
+      stillThere.content = markdownInput.value;
+      updateCurrentDocLabel();
+      refreshFileList(allDocuments, currentDocId);
+      return;
+    }
+  }
+
+  const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
+  if (mainDoc) {
+    currentDocId = mainDoc.id;
+    markdownInput.value = mainDoc.content;
+  } else {
+    currentDocId = null;
+    markdownInput.value = "";
+  }
+  updateCurrentDocLabel();
+  refreshFileList(allDocuments, currentDocId);
+  updatePreview({ skipSave: isLocalFsMode() });
+}
+
+async function handleUnmount() {
+  allDocuments = await getAllDocuments();
+  if (allDocuments.length === 0) {
+    await saveDocument({ name: "main.md", content: "", isMain: true });
+    allDocuments = await getAllDocuments();
+  }
+  loadDocuments(allDocuments);
+  toast.info("Folder unmounted — using saved documents");
+}
+
+function handleExternalFileChange(change) {
+  if (change.type === "modified") {
+    const doc = allDocuments.find((d) => d.name === change.path);
+    if (!doc) return;
+    if (doc.id === currentDocId) {
+      const currentContent = markdownInput.value;
+      if (currentContent !== doc.content && currentContent !== change.content) {
+        const t = toast.warning(`External change in "${change.path}"`, 0);
+        toast.withActions(t, [
+          {
+            label: "Use External",
+            className:
+              "px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors",
+            onClick: () => {
+              doc.content = change.content;
+              markdownInput.value = change.content;
+              updatePreview({ skipSave: true });
+            },
+          },
+          { label: "Keep Mine" },
+        ]);
+        return;
+      }
+      doc.content = change.content;
+      markdownInput.value = change.content;
+      updatePreview({ skipSave: true });
+    } else {
+      doc.content = change.content;
+    }
+  } else if (change.type === "created") {
+    const exists = allDocuments.find((d) => d.name === change.path);
+    if (exists) return;
+    allDocuments.push(fileToDocument(change.path, change.content || "", null));
+    refreshFileList(allDocuments, currentDocId);
+  } else if (change.type === "deleted") {
+    const doc = allDocuments.find((d) => d.name === change.path);
+    if (!doc) return;
+    if (doc.id === currentDocId) {
+      const t = toast.warning(`"${change.path}" was deleted externally`, 0);
+      toast.withActions(t, [
+        {
+          label: "Re-create",
+          className:
+            "px-2 py-1 text-xs bg-kyotu-orange hover:bg-kyotu-orange-light text-white rounded transition-colors",
+          onClick: async () => {
+            const newDoc = await createInLocalFs(change.path);
+            if (newDoc) {
+              newDoc.content = markdownInput.value;
+              await saveToLocalFs(newDoc.name, newDoc.content);
+              allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+              allDocuments.push(newDoc);
+              currentDocId = newDoc.id;
+              refreshFileList(allDocuments, currentDocId);
+            }
+          },
+        },
+        {
+          label: "Close",
+          onClick: () => {
+            allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+            const next = allDocuments.find((d) => d.isMain) || allDocuments[0];
+            if (next) {
+              currentDocId = next.id;
+              markdownInput.value = next.content;
+              updateCurrentDocLabel();
+              updatePreview({ skipSave: true });
+            } else {
+              currentDocId = null;
+              markdownInput.value = "";
+              updateCurrentDocLabel();
+              updatePreview({ skipSave: true });
+            }
+            refreshFileList(allDocuments, currentDocId);
+          },
+        },
+      ]);
+    } else {
+      allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+      refreshFileList(allDocuments, currentDocId);
+    }
   }
 }
 
@@ -383,7 +583,11 @@ async function switchDocument(docId) {
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = markdownInput.value;
-    await saveDocument(currentDoc);
+    if (isLocalFsMode()) {
+      await saveToLocalFs(currentDoc.name, currentDoc.content);
+    } else {
+      await saveDocument(currentDoc);
+    }
   }
 
   const nextDoc = allDocuments.find((d) => d.id === docId);
@@ -405,33 +609,46 @@ async function addDocument(name) {
     return;
   }
 
-  const doc = await saveDocument({ name: trimmed, content: "", isMain: false });
-  allDocuments = await getAllDocuments();
-  refreshFileList(allDocuments, currentDocId);
-  await switchDocument(doc.id);
+  if (isLocalFsMode()) {
+    const doc = await createInLocalFs(trimmed);
+    if (!doc) return;
+    allDocuments.push(doc);
+    refreshFileList(allDocuments, currentDocId);
+    await switchDocument(doc.id);
+  } else {
+    const doc = await saveDocument({ name: trimmed, content: "", isMain: false });
+    allDocuments = await getAllDocuments();
+    refreshFileList(allDocuments, currentDocId);
+    await switchDocument(doc.id);
+  }
 }
 
 async function removeDocument(docId) {
   const doc = allDocuments.find((d) => d.id === docId);
   if (!doc || doc.isMain) return;
 
-  const ok = await confirm({
-    title: "Delete file?",
-    message: `Delete "${doc.name}"? This action cannot be undone.`,
-    confirmText: "Delete",
-    confirmStyle: "danger",
-  });
-  if (!ok) return;
-
-  await deleteDocument(docId);
-  allDocuments = await getAllDocuments();
+  if (isLocalFsMode()) {
+    const deleted = await deleteFromLocalFs(doc.name);
+    if (!deleted) return;
+    allDocuments = allDocuments.filter((d) => d.id !== docId);
+  } else {
+    await deleteDocument(docId);
+    allDocuments = await getAllDocuments();
+  }
 
   if (currentDocId === docId) {
     const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
-    currentDocId = mainDoc.id;
-    markdownInput.value = mainDoc.content;
-    updateCurrentDocLabel();
-    updatePreview();
+    if (mainDoc) {
+      currentDocId = mainDoc.id;
+      markdownInput.value = mainDoc.content;
+      updateCurrentDocLabel();
+      updatePreview();
+    } else {
+      currentDocId = null;
+      markdownInput.value = "";
+      updateCurrentDocLabel();
+      updatePreview({ skipSave: true });
+    }
   }
 
   refreshFileList(allDocuments, currentDocId);
@@ -447,16 +664,34 @@ async function renameDocument(docId, newName) {
     return;
   }
 
-  doc.name = newName;
-  await saveDocument(doc);
-  allDocuments = await getAllDocuments();
+  if (isLocalFsMode()) {
+    const oldId = doc.id;
+    const ok = await renameInLocalFs(doc.name, newName);
+    if (!ok) return;
+    doc.name = newName;
+    doc.id = localIdFor(newName);
+    if (currentDocId === oldId) {
+      currentDocId = doc.id;
+    }
+  } else {
+    doc.name = newName;
+    await saveDocument(doc);
+    allDocuments = await getAllDocuments();
+  }
   updateCurrentDocLabel();
   refreshFileList(allDocuments, currentDocId);
 }
 
 async function changeMainDocument(docId) {
-  await setMainDocument(docId);
-  allDocuments = await getAllDocuments();
+  if (isLocalFsMode()) {
+    const doc = allDocuments.find((d) => d.id === docId);
+    if (!doc) return;
+    for (const d of allDocuments) d.isMain = d.id === docId;
+    await changeMainInLocalFs(doc.name);
+  } else {
+    await setMainDocument(docId);
+    allDocuments = await getAllDocuments();
+  }
   refreshFileList(allDocuments, currentDocId);
   updatePreview();
 }
@@ -548,14 +783,20 @@ function updateMetricsUI(metrics) {
   `;
 }
 
-async function updatePreview() {
+async function updatePreview({ skipSave = false } = {}) {
   const md = markdownInput.value;
   charCount.textContent = `${md.length} chars`;
 
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = md;
-    saveDocument(currentDoc).catch(() => toast.error("Failed to save document"));
+    if (!skipSave) {
+      if (isLocalFsMode()) {
+        saveToLocalFs(currentDoc.name, md).catch(() => toast.error("Failed to save to disk"));
+      } else {
+        saveDocument(currentDoc).catch(() => toast.error("Failed to save document"));
+      }
+    }
   }
 
   if (!md.trim()) {
@@ -733,50 +974,64 @@ async function updatePreviewPaged(elements, metadata, theme, options = {}) {
   preview.appendChild(iframe);
 }
 
-async function generateDocument(format = "docx") {
+async function generateDocument(format = "docx", scope = null) {
+  const effectiveScope = scope || getDefaultScope();
   const mainDoc = allDocuments.find((d) => d.isMain);
   if (mainDoc && mainDoc.id === currentDocId) {
     mainDoc.content = markdownInput.value;
   }
-  const mainContent = mainDoc ? mainDoc.content : markdownInput.value;
 
-  if (!mainContent.trim()) {
-    toast.warning("Main document is empty!");
+  let rootContent;
+  if (effectiveScope === "current") {
+    rootContent = markdownInput.value;
+  } else {
+    rootContent = mainDoc ? mainDoc.content : markdownInput.value;
+  }
+
+  if (!rootContent.trim()) {
+    toast.warning("Document is empty!");
     return;
   }
 
   generateBtn.disabled = true;
   try {
     showStatus("Parsing...");
-    let exportMd = mainContent;
+    let exportMd = rootContent;
     if (allDocuments.length > 1) {
       const docsMap = new Map(allDocuments.map((d) => [d.name, d.content]));
-      exportMd = resolveIncludes(mainContent, docsMap);
+      exportMd = resolveIncludes(rootContent, docsMap);
     }
     const { metadata, body } = parseMarkdown(exportMd);
     const elements = parseBodyToElements(body);
     const themeId = themeSelect.value;
     const filename = metadata.title || "document";
+    const exported = [];
 
     if (format === "docx" || format === "all") {
       showStatus(`Generating DOCX (${elements.length} elements)...`);
       const docxBlob = await generateDocxBlob(metadata, elements, themeId, exportOptions);
       downloadBlob(docxBlob, `${filename}.docx`);
+      exported.push(`${filename}.docx`);
     }
 
     if (format === "pdf" || format === "all") {
       showStatus(`Generating PDF (${elements.length} elements)...`);
       const pdfBlob = await generatePdfBlob(metadata, elements, themeId, exportOptions);
       downloadBlob(pdfBlob, `${filename}.pdf`);
+      exported.push(`${filename}.pdf`);
     }
 
     if (format === "html" || format === "all") {
       showStatus(`Generating HTML (${elements.length} elements)...`);
       const htmlBlob = await generateHtmlBlob(elements, metadata, themeId);
       downloadBlob(htmlBlob, `${filename}.html`);
+      exported.push(`${filename}.html`);
     }
 
     hideStatus();
+    if (exported.length) {
+      toast.success(`Exported ${exported.join(", ")}`);
+    }
   } catch (err) {
     console.error(err);
     hideStatus();
@@ -907,7 +1162,11 @@ async function handleExplorerDrop(files) {
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) {
     currentDoc.content = markdownInput.value;
-    await saveDocument(currentDoc);
+    if (isLocalFsMode()) {
+      await saveToLocalFs(currentDoc.name, currentDoc.content);
+    } else {
+      await saveDocument(currentDoc);
+    }
   }
 
   let added = 0;
@@ -927,23 +1186,47 @@ async function handleExplorerDrop(files) {
 
       if (action === "replace") {
         existingDoc.content = content;
-        await saveDocument(existingDoc);
-        allDocuments = await getAllDocuments();
+        if (isLocalFsMode()) {
+          await saveToLocalFs(existingDoc.name, content);
+        } else {
+          await saveDocument(existingDoc);
+          allDocuments = await getAllDocuments();
+        }
         lastDocId = existingDoc.id;
         replaced++;
       } else if (action === "keep-both") {
         const newName = generateUniqueName(file.name, allDocuments);
-        const doc = await saveDocument({ name: newName, content, isMain: false });
-        allDocuments = await getAllDocuments();
-        lastDocId = doc.id;
+        if (isLocalFsMode()) {
+          const doc = await createInLocalFs(newName);
+          if (doc) {
+            doc.content = content;
+            await saveToLocalFs(newName, content);
+            allDocuments.push(doc);
+            lastDocId = doc.id;
+          }
+        } else {
+          const doc = await saveDocument({ name: newName, content, isMain: false });
+          allDocuments = await getAllDocuments();
+          lastDocId = doc.id;
+        }
         added++;
       } else {
         skipped++;
       }
     } else {
-      const doc = await saveDocument({ name: file.name, content, isMain: false });
-      allDocuments = await getAllDocuments();
-      lastDocId = doc.id;
+      if (isLocalFsMode()) {
+        const doc = await createInLocalFs(file.name);
+        if (doc) {
+          doc.content = content;
+          await saveToLocalFs(file.name, content);
+          allDocuments.push(doc);
+          lastDocId = doc.id;
+        }
+      } else {
+        const doc = await saveDocument({ name: file.name, content, isMain: false });
+        allDocuments = await getAllDocuments();
+        lastDocId = doc.id;
+      }
       added++;
     }
   }
@@ -974,7 +1257,11 @@ function loadFile(file) {
         const currentDoc = allDocuments.find((d) => d.id === currentDocId);
         if (currentDoc) {
           currentDoc.content = content;
-          await saveDocument(currentDoc);
+          if (isLocalFsMode()) {
+            await saveToLocalFs(currentDoc.name, content);
+          } else {
+            await saveDocument(currentDoc);
+          }
         }
         toast.success(`Content of "${currentDoc?.name || "document"}" updated`);
       }
@@ -1068,10 +1355,43 @@ initIncludeAutocomplete(markdownInput, () => allDocuments);
 initDiagramActions(preview);
 
 preview.addEventListener("click", (e) => {
+  const link = e.target.closest("a[href]");
+  if (link && preview.contains(link)) {
+    const href = link.getAttribute("href") || "";
+    if (/^(https?:|mailto:|tel:|#)/i.test(href)) return;
+    const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+    const basePath = currentDoc?.name || "";
+    const target = resolveDocumentPath(basePath, href.split("#")[0].split("?")[0]);
+    const targetDoc = allDocuments.find((d) => d.name === target);
+    if (targetDoc) {
+      e.preventDefault();
+      switchDocument(targetDoc.id);
+    }
+    return;
+  }
   const placeholder = e.target.closest("[data-action='insert-frontmatter']");
   if (!placeholder) return;
   insertFrontmatterTemplate();
 });
+
+function resolveDocumentPath(basePath, relativeUrl) {
+  let url;
+  try {
+    url = decodeURIComponent(relativeUrl);
+  } catch {
+    url = relativeUrl;
+  }
+  if (url.startsWith("/")) return url.slice(1);
+  const baseDir = basePath.includes("/") ? basePath.split("/").slice(0, -1) : [];
+  const parts = url.split("/");
+  const stack = [...baseDir];
+  for (const p of parts) {
+    if (p === "..") stack.pop();
+    else if (p === "." || p === "") continue;
+    else stack.push(p);
+  }
+  return stack.join("/");
+}
 
 function insertFrontmatterTemplate() {
   const current = markdownInput.value;
@@ -1127,6 +1447,10 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     toggleSync();
     updateSyncToggleUI();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "O") {
+    e.preventDefault();
+    handleMountShortcut();
   }
 });
 

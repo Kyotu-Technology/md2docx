@@ -8,6 +8,12 @@ function cleanContentOutsideCodeBlocks(content) {
         return line;
       }
       if (inCodeBlock) return line;
+      const codeSpans = [];
+      line = line.replace(/`[^`\n]+`/g, (m) => {
+        const i = codeSpans.length;
+        codeSpans.push(m);
+        return `\x00${i}\x00`;
+      });
       line = line
         .replace(/&nbsp;/g, " ")
         .replace(/<br\s*\/?>/gi, "\n")
@@ -16,6 +22,7 @@ function cleanContentOutsideCodeBlocks(content) {
       while (/<\/?[a-zA-Z][^>]*>/.test(line)) {
         line = line.replace(/<\/?[a-zA-Z][^>]*>/g, "");
       }
+      line = line.replace(/\x00(\d+)\x00/g, (_, i) => codeSpans[i]);
       return line;
     })
     .join("\n");
@@ -172,7 +179,11 @@ export function parseBodyToElements(body) {
         if (!lines[i].match(/^[\s-:|]+$/)) tableRows.push(row);
         i++;
       }
-      elements.push({ type: "table", rows: tableRows, line: startLine });
+      const maxCols = tableRows.reduce((m, r) => Math.max(m, r.length), 0);
+      const normalizedRows = tableRows.map((r) =>
+        r.length < maxCols ? [...r, ...Array(maxCols - r.length).fill("")] : r
+      );
+      elements.push({ type: "table", rows: normalizedRows, line: startLine });
       continue;
     }
 

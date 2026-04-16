@@ -96,6 +96,31 @@ function dismiss(toast) {
   }, ANIMATION_DURATION);
 }
 
+const DEFAULT_ACTION_CLASS =
+  "px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors";
+
+function withActions(toast, actions) {
+  if (!toast || !actions?.length) return toast;
+
+  const row = document.createElement("div");
+  row.className = "flex gap-2 mt-2 w-full basis-full";
+
+  for (const action of actions) {
+    const btn = document.createElement("button");
+    btn.className = action.className || DEFAULT_ACTION_CLASS;
+    btn.textContent = action.label;
+    btn.addEventListener("click", () => {
+      action.onClick?.();
+      if (action.dismiss !== false) dismiss(toast);
+    });
+    row.appendChild(btn);
+  }
+
+  toast.classList.add("flex-wrap");
+  toast.appendChild(row);
+  return toast;
+}
+
 export const toast = {
   success: (message, duration) => show(message, "success", duration),
   error: (message, duration) => show(message, "error", duration),
@@ -103,4 +128,5 @@ export const toast = {
   info: (message, duration) => show(message, "info", duration),
   show,
   dismiss,
+  withActions,
 };
