@@ -27,6 +27,17 @@ function themeAdapter(theme) {
     colorTableBorder: theme.colors.tableBorder,
     colorCodeBg: theme.colors.codeBg,
     colorCodeBorder: theme.colors.codeBorder,
+    colorH1Text: theme.colors.h1Text || theme.colors.primary,
+    colorH1Bar: theme.colors.h1Bar,
+    colorH1Bg: theme.colors.h1Bg,
+    colorH2Text: theme.colors.h2Text || theme.colors.primary,
+    colorH2Bar: theme.colors.h2Bar,
+    colorH2Bg: theme.colors.h2Bg,
+    colorH3Text: theme.colors.h3Text || theme.colors.primary,
+    colorH4Text: theme.colors.h4Text || theme.colors.primary,
+    colorBlockquoteBar: theme.colors.blockquoteBar,
+    colorBlockquoteBg: theme.colors.blockquoteBg,
+    colorBlockquoteText: theme.colors.blockquoteText || theme.colors.text,
     sizeTitle: theme.sizes.title,
     sizeSubtitle: theme.sizes.subtitle,
     sizeH1: theme.sizes.h1,
@@ -48,6 +59,10 @@ function themeAdapter(theme) {
     spacingH3After: theme.spacing.h3After,
     spacingH4Before: theme.spacing.h4Before,
     spacingH4After: theme.spacing.h4After,
+    spacingListItemAfter: theme.spacing.listItemAfter,
+    bodyAlignment: theme.body?.alignment,
+    h1Caps: theme.headings?.h1Caps,
+    h2Caps: theme.headings?.h2Caps,
     syntax: theme.syntax,
   };
 }
@@ -57,10 +72,11 @@ export function parseInlineFormatting(text, t, overrides = {}) {
   const boldColor = t.colorBold || COLORS.boldFallback;
   const segments = parseInlineSegments(text);
 
+  const plainColor = t.colorText ? { color: t.colorText } : {};
   const styleMap = {
-    plain: {},
+    plain: { ...plainColor },
     bold: { bold: true, color: boldColor },
-    italic: { italics: true },
+    italic: { italics: true, ...plainColor },
     boldItalic: { bold: true, italics: true, color: boldColor },
     code: {
       font: t.fontMono,
@@ -369,34 +385,58 @@ async function elementToDocx(element, theme, t) {
   } = getDocx();
 
   switch (element.type) {
-    case "h1":
+    case "h1": {
+      const decor = {};
+      if (t.colorH1Bar) {
+        decor.border = {
+          left: { style: BorderStyle.SINGLE, size: 24, color: t.colorH1Bar, space: 2 },
+        };
+      }
+      if (t.colorH1Bg) {
+        decor.shading = { fill: t.colorH1Bg, type: ShadingType.CLEAR };
+      }
       return new Paragraph({
         heading: HeadingLevel.HEADING_1,
         spacing: { before: t.spacingH1Before, after: t.spacingH1After },
+        ...decor,
         children: [
           new TextRun({
             text: element.content,
             font: t.fontHeading,
             size: t.sizeH1,
-            color: t.colorPrimary,
+            color: t.colorH1Text || t.colorPrimary,
             bold: true,
+            ...(t.h1Caps ? { allCaps: true } : {}),
           }),
         ],
       });
-    case "h2":
+    }
+    case "h2": {
+      const decor = {};
+      if (t.colorH2Bar) {
+        decor.border = {
+          left: { style: BorderStyle.SINGLE, size: 16, color: t.colorH2Bar, space: 2 },
+        };
+      }
+      if (t.colorH2Bg) {
+        decor.shading = { fill: t.colorH2Bg, type: ShadingType.CLEAR };
+      }
       return new Paragraph({
         heading: HeadingLevel.HEADING_2,
         spacing: { before: t.spacingH2Before, after: t.spacingH2After },
+        ...decor,
         children: [
           new TextRun({
             text: element.content,
             font: t.fontHeading,
             size: t.sizeH2,
-            color: t.colorPrimary,
+            color: t.colorH2Text || t.colorPrimary,
             bold: true,
+            ...(t.h2Caps ? { allCaps: true } : {}),
           }),
         ],
       });
+    }
     case "h3":
       return new Paragraph({
         heading: HeadingLevel.HEADING_3,
@@ -406,7 +446,7 @@ async function elementToDocx(element, theme, t) {
             text: element.content,
             font: t.fontHeading,
             size: t.sizeH3,
-            color: t.colorPrimary,
+            color: t.colorH3Text,
             bold: true,
           }),
         ],
@@ -420,7 +460,7 @@ async function elementToDocx(element, theme, t) {
             text: element.content,
             font: t.fontHeading,
             size: t.sizeH4,
-            color: t.colorPrimary,
+            color: t.colorH4Text,
             bold: true,
           }),
         ],
@@ -428,31 +468,50 @@ async function elementToDocx(element, theme, t) {
     case "paragraph":
       return new Paragraph({
         spacing: { after: t.spacingParaAfter, line: 276 },
+        ...(t.bodyAlignment === "justify" ? { alignment: AlignmentType.JUSTIFIED } : {}),
         children: parseInlineFormatting(element.content, t),
       });
+    case "blockquote": {
+      const decor = {};
+      if (t.colorBlockquoteBar) {
+        decor.border = {
+          left: { style: BorderStyle.SINGLE, size: 20, color: t.colorBlockquoteBar, space: 4 },
+        };
+      }
+      if (t.colorBlockquoteBg) {
+        decor.shading = { fill: t.colorBlockquoteBg, type: ShadingType.CLEAR };
+      }
+      return new Paragraph({
+        spacing: { before: 120, after: t.spacingParaAfter, line: 276 },
+        indent: { left: 120 },
+        ...(t.bodyAlignment === "justify" ? { alignment: AlignmentType.JUSTIFIED } : {}),
+        ...decor,
+        children: parseInlineFormatting(element.content, t),
+      });
+    }
     case "bulletlist":
       return element.items.map(
         (item) =>
           new Paragraph({
             numbering: { reference: "bullets", level: 0 },
-            spacing: { after: 80 },
-            children: parseInlineFormatting(item, t),
+            spacing: { after: t.spacingListItemAfter ?? 80 },
+            children: parseInlineFormatting(typeof item === "string" ? item : item.text, t),
           })
       );
     case "numlist":
       return element.items.map(
         (item) =>
           new Paragraph({
-            numbering: { reference: `numbers-${element.listId}`, level: 0 },
-            spacing: { after: 80 },
-            children: parseInlineFormatting(item, t),
+            numbering: { reference: `numbers-${element.listId}`, level: item.level ?? 0 },
+            spacing: { after: t.spacingListItemAfter ?? 80 },
+            children: parseInlineFormatting(item.text, t),
           })
       );
     case "checklist":
       return element.items.map(
         (item) =>
           new Paragraph({
-            spacing: { after: 80 },
+            spacing: { after: t.spacingListItemAfter ?? 80 },
             indent: { left: 360 },
             children: [
               new TextRun({
@@ -569,7 +628,7 @@ async function elementToDocx(element, theme, t) {
                   shading: isHeader
                     ? { fill: t.colorTableHeader, type: ShadingType.CLEAR }
                     : undefined,
-                  margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                  margins: { top: 40, bottom: 40, left: 80, right: 80 },
                   children: [new Paragraph({ children: cellRuns })],
                 });
               }),
@@ -607,7 +666,7 @@ export async function createDocument(metadata, elements, themeId = "kyotu", opti
     showHeader && hasLogo ? dataUrlToBase64(await loadLogoPng(0.6, customLogo)) : null;
 
   const bodyChildren = [];
-  const numListIds = elements.filter((el) => el.type === "numlist").map((el) => el.listId);
+  const numLists = elements.filter((el) => el.type === "numlist");
 
   for (const el of elements) {
     const result = await elementToDocx(el, theme, t);
@@ -629,18 +688,37 @@ export async function createDocument(metadata, elements, themeId = "kyotu", opti
         },
       ],
     },
-    ...numListIds.map((id) => ({
-      reference: `numbers-${id}`,
-      levels: [
-        {
-          level: 0,
-          format: LevelFormat.DECIMAL,
-          text: "%1.",
-          alignment: AlignmentType.LEFT,
-          style: { paragraph: { indent: { left: 720, hanging: 360 } } },
-        },
-      ],
-    })),
+    ...numLists.map((list) => {
+      const topText = list.marker === ")" ? "%1)" : "%1.";
+      const subItem = list.items.find((it) => it.level === 1);
+      const subMarker = subItem?.marker || "}";
+      const subFormat =
+        subItem?.marker === ")" || subItem?.marker === "."
+          ? LevelFormat.DECIMAL
+          : LevelFormat.LOWER_LETTER;
+      const subText = subMarker === "." ? "%2." : "%2)";
+      return {
+        reference: `numbers-${list.listId}`,
+        levels: [
+          {
+            level: 0,
+            format: LevelFormat.DECIMAL,
+            text: topText,
+            alignment: AlignmentType.LEFT,
+            start: list.start ?? 1,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+          },
+          {
+            level: 1,
+            format: subFormat,
+            text: subText,
+            alignment: AlignmentType.LEFT,
+            start: 1,
+            style: { paragraph: { indent: { left: 1440, hanging: 360 } } },
+          },
+        ],
+      };
+    }),
   ];
 
   const sections = [];

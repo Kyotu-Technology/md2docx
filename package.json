@@ -3,6 +3,9 @@
   "version": "1.5.0",
   "description": "Professional Markdown to DOCX/PDF/HTML converter",
   "type": "module",
+  "bin": {
+    "md2docx": "./bin/md2docx.js"
+  },
   "scripts": {
     "dev": "bun run src/dev-server.js",
     "build": "bun run build.js",
@@ -14,6 +17,13 @@
     "test:headed": "bunx bddgen && bunx playwright test --headed",
     "test:ui": "bunx bddgen && bunx playwright test --ui",
     "test:update-snapshots": "bunx bddgen && xvfb-run bunx playwright test --update-snapshots"
+  },
+  "dependencies": {
+    "docx": "^9.5.1",
+    "highlight.js": "^11.11.1",
+    "linkedom": "^0.18.12",
+    "pako": "^2.1.0",
+    "pdfmake": "^0.3.0-beta.16"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

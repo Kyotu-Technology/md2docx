@@ -1,12 +1,13 @@
 import { defineConfig } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
 
+const isCI = !!process.env.CI;
+
 const testDir = defineBddConfig({
   features: "tests/features/**/*.feature",
   steps: "tests/steps/**/*.steps.js",
+  tags: isCI ? "not @network" : undefined,
 });
-
-const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir,

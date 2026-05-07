@@ -88,6 +88,20 @@ function pdfThemeAdapter(theme) {
     colorTableBorder: hexToRgb(theme.colors.tableBorder),
     colorCodeBg: hexToRgb(theme.colors.codeBg),
     colorCodeBorder: hexToRgb(theme.colors.codeBorder),
+    colorH1Text: hexToRgb(theme.colors.h1Text || theme.colors.primary),
+    colorH1Bar: theme.colors.h1Bar ? hexToRgb(theme.colors.h1Bar) : null,
+    colorH1Bg: theme.colors.h1Bg ? hexToRgb(theme.colors.h1Bg) : null,
+    colorH2Text: hexToRgb(theme.colors.h2Text || theme.colors.primary),
+    colorH2Bar: theme.colors.h2Bar ? hexToRgb(theme.colors.h2Bar) : null,
+    colorH2Bg: theme.colors.h2Bg ? hexToRgb(theme.colors.h2Bg) : null,
+    colorH3Text: hexToRgb(theme.colors.h3Text || theme.colors.primary),
+    colorH4Text: hexToRgb(theme.colors.h4Text || theme.colors.primary),
+    colorBlockquoteBar: theme.colors.blockquoteBar ? hexToRgb(theme.colors.blockquoteBar) : null,
+    colorBlockquoteBg: theme.colors.blockquoteBg ? hexToRgb(theme.colors.blockquoteBg) : null,
+    colorBlockquoteText: hexToRgb(theme.colors.blockquoteText || theme.colors.text),
+    bodyAlignment: theme.body?.alignment,
+    h1Caps: theme.headings?.h1Caps,
+    h2Caps: theme.headings?.h2Caps,
     sizeTitle: hp(theme.sizes.title),
     sizeSubtitle: hp(theme.sizes.subtitle),
     sizeH1: hp(theme.sizes.h1),
@@ -121,9 +135,9 @@ function parseInlineFormatting(text, t) {
   const segments = parseInlineSegments(safeText);
 
   const styleMap = {
-    plain: { font: t.fontBody, fontSize: t.sizeBody },
+    plain: { font: t.fontBody, fontSize: t.sizeBody, color: t.colorText },
     bold: { font: t.fontBody, fontSize: t.sizeBody, bold: true, color: t.colorBold },
-    italic: { font: t.fontBody, fontSize: t.sizeBody, italics: true },
+    italic: { font: t.fontBody, fontSize: t.sizeBody, italics: true, color: t.colorText },
     boldItalic: {
       font: t.fontBody,
       fontSize: t.sizeBody,
@@ -155,32 +169,96 @@ function parseInlineFormatting(text, t) {
 
 async function elementToPdf(element, t, theme) {
   switch (element.type) {
-    case "h1":
+    case "h1": {
+      const headingText = t.h1Caps ? element.content.toUpperCase() : element.content;
+      const text = withSymbolFont(sanitizeText(headingText), t.fontHeading);
+      if (t.colorH1Bar || t.colorH1Bg) {
+        return {
+          table: {
+            widths: [3, "*"],
+            body: [
+              [
+                {
+                  text: "",
+                  fillColor: t.colorH1Bar || t.colorH1Bg,
+                  border: [false, false, false, false],
+                },
+                {
+                  text,
+                  fontSize: t.sizeH1,
+                  bold: true,
+                  color: t.colorH1Text,
+                  fillColor: t.colorH1Bg,
+                  margin: [4, 4, 4, 4],
+                  border: [false, false, false, false],
+                },
+              ],
+            ],
+          },
+          layout: "noBorders",
+          margin: [0, t.spacingH1Before, 0, t.spacingH1After],
+          tocItem: true,
+          tocStyle: "tocH1",
+        };
+      }
       return {
-        text: withSymbolFont(sanitizeText(element.content), t.fontHeading),
+        text,
         fontSize: t.sizeH1,
         bold: true,
-        color: t.colorPrimary,
+        color: t.colorH1Text,
         margin: [0, t.spacingH1Before, 0, t.spacingH1After],
         tocItem: true,
         tocStyle: "tocH1",
       };
-    case "h2":
+    }
+    case "h2": {
+      const headingText = t.h2Caps ? element.content.toUpperCase() : element.content;
+      const text = withSymbolFont(sanitizeText(headingText), t.fontHeading);
+      if (t.colorH2Bar || t.colorH2Bg) {
+        return {
+          table: {
+            widths: [2, "*"],
+            body: [
+              [
+                {
+                  text: "",
+                  fillColor: t.colorH2Bar || t.colorH2Bg,
+                  border: [false, false, false, false],
+                },
+                {
+                  text,
+                  fontSize: t.sizeH2,
+                  bold: true,
+                  color: t.colorH2Text,
+                  fillColor: t.colorH2Bg,
+                  margin: [4, 3, 4, 3],
+                  border: [false, false, false, false],
+                },
+              ],
+            ],
+          },
+          layout: "noBorders",
+          margin: [0, t.spacingH2Before, 0, t.spacingH2After],
+          tocItem: true,
+          tocStyle: "tocH2",
+        };
+      }
       return {
-        text: withSymbolFont(sanitizeText(element.content), t.fontHeading),
+        text,
         fontSize: t.sizeH2,
         bold: true,
-        color: t.colorPrimary,
+        color: t.colorH2Text,
         margin: [0, t.spacingH2Before, 0, t.spacingH2After],
         tocItem: true,
         tocStyle: "tocH2",
       };
+    }
     case "h3":
       return {
         text: withSymbolFont(sanitizeText(element.content), t.fontHeading),
         fontSize: t.sizeH3,
         bold: true,
-        color: t.colorPrimary,
+        color: t.colorH3Text,
         margin: [0, t.spacingH3Before, 0, t.spacingH3After],
         tocItem: true,
         tocStyle: "tocH3",
@@ -190,7 +268,7 @@ async function elementToPdf(element, t, theme) {
         text: withSymbolFont(sanitizeText(element.content), t.fontHeading),
         fontSize: t.sizeH4,
         bold: true,
-        color: t.colorPrimary,
+        color: t.colorH4Text,
         margin: [0, t.spacingH4Before, 0, t.spacingH4After],
         tocItem: true,
         tocStyle: "tocH4",
@@ -198,28 +276,92 @@ async function elementToPdf(element, t, theme) {
     case "paragraph":
       return {
         text: parseInlineFormatting(element.content, t),
+        alignment: t.bodyAlignment === "justify" ? "justify" : undefined,
         margin: [0, 0, 0, t.spacingParaAfter],
       };
+    case "blockquote": {
+      const inline = parseInlineFormatting(element.content, t);
+      if (t.colorBlockquoteBar || t.colorBlockquoteBg) {
+        return {
+          table: {
+            widths: [3, "*"],
+            body: [
+              [
+                {
+                  text: "",
+                  fillColor: t.colorBlockquoteBar || t.colorBlockquoteBg,
+                  border: [false, false, false, false],
+                },
+                {
+                  text: inline,
+                  fillColor: t.colorBlockquoteBg,
+                  alignment: t.bodyAlignment === "justify" ? "justify" : undefined,
+                  margin: [5, 5, 5, 5],
+                  border: [false, false, false, false],
+                },
+              ],
+            ],
+          },
+          layout: "noBorders",
+          margin: [0, 4, 0, t.spacingParaAfter],
+        };
+      }
+      return {
+        text: inline,
+        alignment: t.bodyAlignment === "justify" ? "justify" : undefined,
+        margin: [12, 4, 0, t.spacingParaAfter],
+      };
+    }
     case "bulletlist":
       return {
         ul: element.items.map((item) => ({
-          text: parseInlineFormatting(item, t),
+          text: parseInlineFormatting(typeof item === "string" ? item : item.text, t),
           font: t.fontBody,
           fontSize: t.sizeBody,
           margin: [0, 2, 0, 2],
         })),
         margin: [0, 5, 0, t.spacingParaAfter],
       };
-    case "numlist":
+    case "numlist": {
+      const result = [];
+      let i = 0;
+      while (i < element.items.length) {
+        const item = element.items[i];
+        if (item.level !== 0) {
+          i++;
+          continue;
+        }
+        const subs = [];
+        while (i + 1 < element.items.length && element.items[i + 1].level === 1) {
+          i++;
+          subs.push({
+            text: parseInlineFormatting(element.items[i].text, t),
+            font: t.fontBody,
+            fontSize: t.sizeBody,
+            margin: [0, 2, 0, 2],
+          });
+        }
+        const main = {
+          text: parseInlineFormatting(item.text, t),
+          font: t.fontBody,
+          fontSize: t.sizeBody,
+          margin: [0, 2, 0, 2],
+        };
+        if (subs.length) {
+          result.push({
+            stack: [main, { ol: subs, type: "lower-alpha", margin: [10, 0, 0, 0] }],
+          });
+        } else {
+          result.push(main);
+        }
+        i++;
+      }
       return {
-        ol: element.items.map((item) => ({
-          text: parseInlineFormatting(item, t),
-          font: t.fontBody,
-          fontSize: t.sizeBody,
-          margin: [0, 2, 0, 2],
-        })),
+        ol: result,
+        start: element.start,
         margin: [0, 5, 0, t.spacingParaAfter],
       };
+    }
     case "checklist":
       return {
         stack: element.items.map((item) => ({
@@ -318,7 +460,7 @@ async function elementToPdf(element, t, theme) {
               fontSize: t.sizeTable,
               fillColor: rowIdx === 0 ? t.colorTableHeader : null,
               bold: rowIdx === 0 || colIdx === 0,
-              margin: [6, 5, 6, 5],
+              margin: [4, 3, 4, 3],
             }))
           ),
         },

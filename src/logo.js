@@ -11,6 +11,9 @@ let cachedOpacity = null;
  * @returns {Promise<string|null>} full data URL (e.g., "data:image/png;base64,...")
  */
 export async function loadLogoPng(opacity = 1, customLogoDataUrl = null) {
+  if (typeof document === "undefined") {
+    return null;
+  }
   if (customLogoDataUrl) {
     const canvas = document.createElement("canvas");
     canvas.width = CANVAS.logoWidth;

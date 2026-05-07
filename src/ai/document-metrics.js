@@ -82,8 +82,11 @@ export function analyzeDocumentMetrics(elements, metadata) {
       countAndAdd(categories.headings, el.content);
     } else if (el.type === "paragraph") {
       countAndAdd(categories.body, el.content);
-    } else if (el.type === "bulletlist" || el.type === "numlist") {
-      for (const item of el.items) countAndAdd(categories.lists, item);
+    } else if (el.type === "bulletlist") {
+      for (const item of el.items)
+        countAndAdd(categories.lists, typeof item === "string" ? item : item.text);
+    } else if (el.type === "numlist") {
+      for (const item of el.items) countAndAdd(categories.lists, item.text);
     } else if (el.type === "checklist") {
       for (const item of el.items) countAndAdd(categories.lists, item.text || "");
     } else if (el.type === "table") {

@@ -168,6 +168,17 @@ export function parseBodyToElements(body) {
       continue;
     }
 
+    if (line.match(/^>\s?/)) {
+      const startLine = i;
+      const quoteLines = [];
+      while (i < lines.length && lines[i].match(/^>\s?/)) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ""));
+        i++;
+      }
+      elements.push({ type: "blockquote", content: quoteLines.join(" "), line: startLine });
+      continue;
+    }
+
     if (line.includes("|") && lines[i + 1]?.match(/^\|?[\s-:|]+\|?$/)) {
       const startLine = i;
       const tableRows = [];
@@ -202,23 +213,74 @@ export function parseBodyToElements(body) {
     if (line.match(/^[\s]*[-*+] /)) {
       const startLine = i;
       const items = [];
-      while (i < lines.length && lines[i].match(/^[\s]*[-*+] /)) {
-        items.push(lines[i].replace(/^[\s]*[-*+] /, ""));
-        i++;
+      while (i < lines.length) {
+        if (lines[i].match(/^[\s]*[-*+] /)) {
+          items.push({
+            text: lines[i].replace(/^[\s]*[-*+] /, ""),
+            srcLine: i,
+          });
+          i++;
+          continue;
+        }
+        if (lines[i].trim() === "") {
+          let k = i + 1;
+          while (k < lines.length && lines[k].trim() === "") k++;
+          if (k < lines.length && lines[k].match(/^[\s]*[-*+] /)) {
+            i = k;
+            continue;
+          }
+        }
+        break;
       }
       elements.push({ type: "bulletlist", items, line: startLine });
       continue;
     }
 
-    if (line.match(/^[\s]*\d+\. /)) {
+    if (line.match(/^[\s]*\d+[.)] /)) {
       const startLine = i;
+      const startMatch = line.match(/^[\s]*(\d+)([.)]) /);
+      const start = parseInt(startMatch[1], 10);
+      const marker = startMatch[2];
+      const baseIndent = (line.match(/^([\s]*)/)[1] || "").replace(/\t/g, "  ").length;
       const items = [];
-      while (i < lines.length && lines[i].match(/^[\s]*\d+\. /)) {
-        items.push(lines[i].replace(/^[\s]*\d+\. /, ""));
-        i++;
+      while (i < lines.length) {
+        if (lines[i].match(/^[\s]*\d+[.)] /)) {
+          const indentMatch = lines[i].match(/^([\s]*)/);
+          const indent = indentMatch[1].replace(/\t/g, "  ").length;
+          const level = indent - baseIndent >= 2 ? 1 : 0;
+          const itemMarkerMatch = lines[i].match(/^[\s]*\d+([.)]) /);
+          const itemMarker = itemMarkerMatch[1];
+          items.push({
+            text: lines[i].replace(/^[\s]*\d+[.)] /, ""),
+            level,
+            marker: itemMarker,
+            srcLine: i,
+          });
+          i++;
+          continue;
+        }
+        if (lines[i].trim() === "") {
+          let k = i + 1;
+          while (k < lines.length && lines[k].trim() === "") k++;
+          if (k < lines.length && lines[k].match(/^[\s]*\d+[.)] /)) {
+            const nextIndent = (lines[k].match(/^([\s]*)/)[1] || "").replace(/\t/g, "  ").length;
+            if (nextIndent <= baseIndent || nextIndent - baseIndent >= 2) {
+              i = k;
+              continue;
+            }
+          }
+        }
+        break;
       }
       numListCounter++;
-      elements.push({ type: "numlist", items, listId: numListCounter, line: startLine });
+      elements.push({
+        type: "numlist",
+        items,
+        listId: numListCounter,
+        start,
+        marker,
+        line: startLine,
+      });
       continue;
     }
 
@@ -231,7 +293,7 @@ export function parseBodyToElements(body) {
       !lines[i].startsWith("#") &&
       !lines[i].startsWith("```") &&
       !lines[i].match(/^[\s]*[-*+] /) &&
-      !lines[i].match(/^[\s]*\d+\. /) &&
+      !lines[i].match(/^[\s]*\d+[.)] /) &&
       !lines[i].includes("|")
     ) {
       paraLines.push(lines[i]);

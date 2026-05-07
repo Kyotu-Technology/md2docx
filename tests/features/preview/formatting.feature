@@ -119,8 +119,8 @@ Feature: Text formatting in preview
   Scenario: Link URL with parentheses parses correctly
     Given the editor contains:
       """
-      See [docs](../spec/Appendix%202%20(PROSERV-0043).md) for details.
+      See [docs](../spec/Appendix%202%20(RFC-1234).md) for details.
       """
     When the preview renders
-    Then the preview should contain a link with href "../spec/Appendix%202%20(PROSERV-0043).md"
+    Then the preview should contain a link with href "../spec/Appendix%202%20(RFC-1234).md"
     And the preview should contain text "docs"

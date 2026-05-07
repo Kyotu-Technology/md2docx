@@ -46,6 +46,62 @@ Then(
   }
 );
 
+Then(
+  "the {string} should have a {string} attribute equal to {string}",
+  async ({ page }, tag, attr, expected) => {
+    const el = page.locator(`#preview ${tag}:not(.checklist)`).first();
+    await expect(el).toHaveAttribute(attr, expected);
+  }
+);
+
+Then("the preview should contain {int} {string} elements", async ({ page }, count, tag) => {
+  const els = page.locator(`#preview ${tag}:not(.checklist)`);
+  await expect(els).toHaveCount(count);
+});
+
+Then(
+  "the first {string} should have a {string} attribute equal to {string}",
+  async ({ page }, tag, attr, expected) => {
+    const el = page.locator(`#preview ${tag}:not(.checklist)`).nth(0);
+    await expect(el).toHaveAttribute(attr, expected);
+  }
+);
+
+Then(
+  "the second {string} should have a {string} attribute equal to {string}",
+  async ({ page }, tag, attr, expected) => {
+    const el = page.locator(`#preview ${tag}:not(.checklist)`).nth(1);
+    await expect(el).toHaveAttribute(attr, expected);
+  }
+);
+
+Then(
+  "the second {string} should have {int} {string} children",
+  async ({ page }, parentTag, count, childTag) => {
+    const parent = page.locator(`#preview ${parentTag}:not(.checklist)`).nth(1);
+    const children = parent.locator(`> ${childTag}`);
+    await expect(children).toHaveCount(count);
+  }
+);
+
+Then(
+  "the top-level {string} should have {int} direct {string} children",
+  async ({ page }, parentTag, count, childTag) => {
+    const children = page.locator(`#preview > ${parentTag} > ${childTag}`);
+    await expect(children).toHaveCount(count);
+  }
+);
+
+Then(
+  "the first top-level {string} should contain a nested {string} with {int} {string} children",
+  async ({ page }, outerLi, nestedTag, count, innerLi) => {
+    const nested = page.locator(
+      `#preview > ol > ${outerLi}:first-child > ${nestedTag} > ${innerLi}`
+    );
+    await expect(nested).toHaveCount(count);
+  }
+);
+
 // --- List style ---
 
 Then("the {string} list-style-type should be {string}", async ({ page }, tag, expectedStyle) => {
@@ -121,9 +177,7 @@ Then("the first row should contain {string} cells", async ({ page }, cellTag) =>
 });
 
 Then("the table should have {int} columns", async ({ page }, expectedCols) => {
-  const cells = page.locator(
-    "#preview table tr:first-child th, #preview table tr:first-child td"
-  );
+  const cells = page.locator("#preview table tr:first-child th, #preview table tr:first-child td");
   await expect(cells).toHaveCount(expectedCols);
 });
 

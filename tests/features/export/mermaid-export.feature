@@ -3,6 +3,7 @@ Feature: Mermaid diagram export
   Background:
     Given the application is loaded
 
+  @network
   Scenario: DOCX preserves mermaid diagram aspect ratio
     Given the editor contains:
       """

@@ -47,12 +47,12 @@ Feature: Table rendering in preview
   Scenario: Table with extra cells in some rows normalizes to max column count
     Given the editor contains:
       """
-      | Wymaganie | Mechanizm |
+      | Endpoint | Method |
       |---|---|
-      | A | mechanizm A |
-      | B | mechanizm B |
-      | C | mechanizm C | zrodlo C |
-      | D | mechanizm D | zrodlo D |
+      | A | GET handler |
+      | B | POST handler |
+      | C | PUT handler | source C |
+      | D | DELETE handler | source D |
       """
     When the preview renders
     Then the preview should contain a "table" element
@@ -61,8 +61,8 @@ Feature: Table rendering in preview
     And row 2 should have 3 cells
     And row 3 should have 3 cells
     And row 5 should have 3 cells
-    And the preview should contain text "zrodlo C"
-    And the preview should contain text "zrodlo D"
+    And the preview should contain text "source C"
+    And the preview should contain text "source D"
 
   Scenario: Short rows in wider table are padded with empty cells
     Given the editor contains:
@@ -80,11 +80,11 @@ Feature: Table rendering in preview
   Scenario: Reproduces user's inconsistent table from issue
     Given the editor contains:
       """
-      | Wymaganie | Mechanizm |
+      | Requirement | Mechanism |
       |---|---|
-      | Deadline submisji | 28.04.2026, 17:00 CET. Późniejsze = odrzucenie |
-      | Validity oferty | Min. 6 miesięcy od deadline submisji | `1.0 Tender specifications` §4 |
-      | Język oferty | Dowolny oficjalny UE; komitet ewaluacyjny pracuje po angielsku | `1.0 Tender specifications` §4 |
+      | Max payload size | 10 MB. Larger requests rejected with 413 |
+      | Rate limit | 100 requests per minute | `1.0 API specification` §4 |
+      | Auth method | Bearer token over HTTPS; tokens expire after 1 hour | `1.0 API specification` §4 |
       """
     When the preview renders
     Then the table should have 3 columns
@@ -92,6 +92,6 @@ Feature: Table rendering in preview
     And row 2 should have 3 cells
     And row 3 should have 3 cells
     And row 4 should have 3 cells
-    And the preview should contain text "Deadline submisji"
-    And the preview should contain text "Validity oferty"
-    And the preview should contain text "Język oferty"
+    And the preview should contain text "Max payload size"
+    And the preview should contain text "Rate limit"
+    And the preview should contain text "Auth method"

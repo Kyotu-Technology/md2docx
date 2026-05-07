@@ -1,5 +1,8 @@
 import { kyotu } from "./kyotu.js";
+import { kyotuMini } from "./kyotu-mini.js";
+import { kyotuPro } from "./kyotu-pro.js";
 import { minimal } from "./minimal.js";
+import { mini } from "./mini.js";
 import {
   getAllTemplates,
   getTemplate,
@@ -9,7 +12,10 @@ import {
 
 export const themes = {
   kyotu,
+  "kyotu-mini": kyotuMini,
+  "kyotu-pro": kyotuPro,
   minimal,
+  mini,
 };
 
 export const defaultTheme = "kyotu";

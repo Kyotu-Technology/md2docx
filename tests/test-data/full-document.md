@@ -1,7 +1,7 @@
 ---
 title: "Technical Documentation"
 subtitle: "Implementation Guide"
-author: "KYOTU Technology"
+author: "Example Corporation"
 date: "January 2026"
 ---
 
