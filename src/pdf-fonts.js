@@ -11,7 +11,14 @@ function ttfFileName(woff2Name) {
   return woff2Name.replace(".woff2", ".ttf");
 }
 
+const isNode = typeof window === "undefined" || !window.location;
+
 async function fetchAsBase64(url) {
+  if (isNode) {
+    const { readFile } = await import("node:fs/promises");
+    const buffer = await readFile(url);
+    return buffer.toString("base64");
+  }
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Font fetch failed: ${url} (${response.status})`);
   const buffer = await response.arrayBuffer();
@@ -25,6 +32,9 @@ async function fetchAsBase64(url) {
 }
 
 function getBaseUrl() {
+  if (isNode) {
+    return globalThis.__md2docxRoot || process.cwd();
+  }
   return window.location.origin + window.location.pathname.replace(/\/[^/]*$/, "");
 }
 

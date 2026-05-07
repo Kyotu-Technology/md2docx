@@ -43,15 +43,40 @@ export async function generateHtmlDocument(elements, metadata, themeId = "kyotu"
       margin-bottom: 0.5em;
       page-break-after: avoid;
     }
-    
-    h1 { font-size: 1.75em; }
-    h2 { font-size: 1.4em; }
-    h3 { font-size: 1.2em; }
-    h4 { font-size: 1.1em; }
-    
+
+    h1 {
+      font-size: 1.75em;
+      ${c.h1Bar ? `border-left: 3px solid #${c.h1Bar};` : ""}
+      ${c.h1Bg ? `background-color: #${c.h1Bg};` : ""}
+      ${c.h1Bar || c.h1Bg ? `padding: 5px 8px;` : ""}
+      ${c.h1Text ? `color: #${c.h1Text};` : ""}
+      ${theme.headings?.h1Caps ? `text-transform: uppercase; letter-spacing: 0.02em;` : ""}
+    }
+    h2 {
+      font-size: 1.4em;
+      ${c.h2Bar ? `border-left: 2px solid #${c.h2Bar};` : ""}
+      ${c.h2Bg ? `background-color: #${c.h2Bg};` : ""}
+      ${c.h2Bar || c.h2Bg ? `padding: 3px 6px;` : ""}
+      ${c.h2Text ? `color: #${c.h2Text};` : ""}
+      ${theme.headings?.h2Caps ? `text-transform: uppercase; letter-spacing: 0.02em;` : ""}
+    }
+    h3 { font-size: 1.2em; ${c.h3Text ? `color: #${c.h3Text};` : ""} }
+    h4 { font-size: 1.1em; ${c.h4Text ? `color: #${c.h4Text};` : ""} }
+
     p {
       font-family: ${f.body}, Arial, sans-serif;
       margin-bottom: 0.75em;
+      ${theme.body?.alignment === "justify" ? `text-align: justify;` : ""}
+    }
+
+    blockquote {
+      font-family: ${f.body}, Arial, sans-serif;
+      margin: 0.75em 0;
+      padding: 6px 10px;
+      ${c.blockquoteBar ? `border-left: 4px solid #${c.blockquoteBar};` : "border-left: 4px solid #cbd5e0;"}
+      ${c.blockquoteBg ? `background-color: #${c.blockquoteBg};` : ""}
+      ${c.blockquoteText ? `color: #${c.blockquoteText};` : ""}
+      ${theme.body?.alignment === "justify" ? `text-align: justify;` : ""}
     }
     
     ul, ol {
@@ -99,7 +124,7 @@ export async function generateHtmlDocument(elements, metadata, themeId = "kyotu"
     
     th, td {
       border: 1px solid #${c.tableBorder};
-      padding: 0.5em 0.75em;
+      padding: 0.3em 0.45em;
       text-align: left;
     }
     

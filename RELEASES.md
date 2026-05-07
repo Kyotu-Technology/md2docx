@@ -3,29 +3,42 @@
 ## 1.5.0
 
 ### New features
+
 - **Local filesystem sync** - Mount a local folder and work with real files on disk. Bidirectional sync: edits in the browser auto-save to disk, external changes (from VS Code, Vim, AI coding agents) appear in the app within seconds. Uses File System Access API with FileSystemObserver (Chrome 133+) for event-driven detection and polling fallback for older Chromium browsers. Session restore remembers the last mounted folder. Chromium-only (Chrome, Edge, Opera, Brave); Firefox and Safari gracefully degrade with zero broken UI.
+- **CLI tool** - Convert Markdown from the command line via `md2docx convert <input.md>`. Supports `docx`, `pdf`, and `html` formats, all themes, recursive `@include` resolution, and opt-in title page / TOC / header / footer flags. Installable globally via `bun link` or `npm install -g`. Node-native runtime - no browser required (a small CDN shim adapts the renderers to Node/Bun, with PDF font loading and logo handling falling back gracefully outside the DOM).
+- **Three new built-in themes** - `kyotu-pro` (bold Calibri-only KYOTU variant), `kyotu-mini` (compact KYOTU with reduced spacing for dense layouts), and `mini` (neutral blue-accent theme for general-purpose documents). Brings the total to five built-in themes.
+- **Blockquotes** - Markdown `> ...` quotes are now a first-class block element across the parser and all four renderers (DOCX, PDF, live preview, HTML export), with theme-driven left bar, background, and indentation.
+- **Theme customization expansion** - Themes now support per-level heading colors (H1 to H4), heading left bars (`h1Bar`, `h2Bar`), heading backgrounds (`h1Bg`, `h2Bg`), uppercase heading transform with letter-spacing (`h1Caps`, `h2Caps`), body text justify alignment (`bodyAlignment: "justify"`), explicit plain and italic text colors, and configurable `spacingListItemAfter`. Honored across DOCX, PDF, live preview, and HTML export.
+- **Tab close protection** - In local-filesystem mode, closing the tab while saves to disk are still pending now triggers the browser's confirmation prompt, preventing silent data loss when external editors race the writeback queue.
 
 ### Changed
+
 - **File explorer redesign** - Sidebar is now a push-based dark panel matching the app's header/footer chrome, instead of a white overlay that covered the editor. In local-fs mode, files are grouped into collapsible folders (one level deep) with chevron toggle, replacing the star-based main document indicator. Delete confirmation is now inline (checkmark/X buttons with 4-second auto-cancel) instead of a modal dialog. Filenames show a tooltip with the full path on hover. Width increased from 200px to 220px.
 - **Scope-aware export** - The export dropdown now exports the file you are currently viewing, not always the document marked as main. A scope selector at the top of the dropdown lets you choose between "This file only" and "Main + @includes" (with live count of actual `@include` references in the main document). Default is context-aware: editing the main document defaults to the main + includes scope (preserving the previous behavior for authors composing multi-part documents), editing any other file defaults to "This file only". The selector is hidden when only one document exists. Fixes the asymmetry where live preview showed the current file but export always produced the main document.
 
 ### Fixes
+
 - **External change feedback loop** - When a file was modified on disk and the app detected the change, `updatePreview()` would write the same content back to disk, causing the external editor to see "file changed on disk" warnings. Fixed by adding `skipSave` parameter to `updatePreview()` for all code paths where content originates from disk.
 - **Preview fixes** - Table rows with mismatched cell counts pad to the max column count; inline code spans no longer strip `<svg>`-like HTML tags; markdown link URLs with parentheses parse correctly; clicking a preview link to a document in the tree opens it in the editor instead of a blank tab.
 - **Mounted filesystem hygiene** - Dot-prefixed files (e.g. `.env`) are now skipped during scan, matching the existing behavior for dot-directories.
 - **Export toast feedback** - Successful exports now surface a toast listing the generated filenames (previously only the status bar was updated, which hid before completion was obvious).
+- **Local-fs polish** - Several refinements to the local filesystem sync engine: returning to the tab after external edits now diffs and merges per file instead of triggering a full rescan; loading an example or opening another `.md` file while a folder is mounted asks for confirmation before overwriting; saves are deduplicated against the last synced content (no redundant disk writes); deletes and renames now properly mark themselves as our own writes, preventing the watcher from misclassifying them as external changes.
+- **Numbered list numbering** - Fixed three related bugs. (1) Lists separated by intervening content (paragraphs, headings, blank lines) now continue numbering from the source value (`5.`, `6.`, ...) instead of restarting at `1.` for every visually-separated block. The first item's number defines the start; subsequent items continue sequentially per CommonMark behavior. (2) Indented numbered sub-items (e.g. `   1. Sub`) now render as nested `<ol>` in preview, with second-level numbering in DOCX (`a)`, `b)`, ...) and lower-alpha in PDF, instead of flattening into the top-level list. (3) Polish-style enumerations using closing-paren markers (`1)`, `2)`, `3)` - common in legal and statutory texts) are now recognized as numbered lists across preview and DOCX export, instead of being concatenated into a single paragraph. The marker is preserved per item and rendered with `)` suffix in preview (via CSS counter) and DOCX (via `%1)` numbering format).
 
 ---
 
 ## 1.4.0
 
 ### New features
+
 - **Document sharing** — Share documents via encrypted URL links. Content is compressed (pako deflate) and encrypted (AES-256-GCM) client-side, then embedded in the URL fragment which never leaves the browser. Two modes: link-only (encryption key in URL) and password-protected (PBKDF2 key derivation). Configurable link expiry (1h to 30 days). Import shared documents with Replace All or Merge options. Optional URL shortening via is.gd.
 
 ### Fixes
+
 - **DOCX table formatting** — Header row is now properly bold in exported DOCX. Table spans full document width with column widths proportional to content length.
 
 ### Changed
+
 - **Document metrics** — Readability panel (Flesch-Kincaid score, passive voice) replaced with practical document metrics. Shows character counts (with and without spaces) and word counts broken down by content category: title page, headings, body text, lists, tables, and code blocks. Useful for formal documents with character or page limits where different elements may count differently. Badge in the preview header shows total character count. Heading hierarchy validation preserved.
 - **Honest title page preview** — Live preview now shows title page only from explicit YAML frontmatter instead of auto-generating phantom titles and dates from H1 headings and `new Date()`. When no frontmatter is present, a clickable placeholder guides users to add metadata. DOCX/PDF/HTML export retains auto-fallback behavior for professional output.
 - **Document Options** — "Export Options" renamed to "Document Options". Toggles (Title Page, ToC, Header, Footer) now affect both live preview and export, making the editor truly WYSIWYG.
@@ -35,6 +48,7 @@
 ## 1.3.1
 
 ### Fixes
+
 - **Angle brackets in tables** — `<` and `>` in table cells and paragraphs no longer break rendering.
 - **File explorer toggle** — Toggle button no longer bleeds through the open explorer panel.
 
@@ -43,10 +57,12 @@
 ## 1.3.0
 
 ### New features
+
 - **File explorer** — Sidebar panel for managing multiple Markdown documents in one session. Documents stored in IndexedDB with drag & drop import. `@include(filename)` references let you compose a main document from parts, with autocomplete and recursive resolution.
 - **Mermaid diagram actions** — Copy to clipboard and download as PNG buttons on every diagram preview.
 
 ### Fixes
+
 - **Table empty cells** — Parser no longer drops empty cells from tables (`| foo | | bar |` works correctly).
 - **Mermaid diagram dimensions** — Actual PNG dimensions read from Kroki response instead of hardcoded 500×300. Diagrams now render with correct proportions in DOCX and PDF exports.
 
@@ -55,10 +71,12 @@
 ## 1.2.0
 
 ### New features
+
 - **PDF overhaul** — Custom theme fonts (instead of hardcoded Roboto), proper hljs syntax highlighting, Unicode symbol support via Noto Emoji, configurable header with logo positioning and document title.
 - **Formatting toolbar** — Floating bubble menu appears on text selection. Bold, italic, code, and link formatting with one click. Keyboard shortcuts: Ctrl+B, Ctrl+I, Ctrl+E, Ctrl+K. Smart toggle detects existing formatting including bold+italic combinations (`***text***`).
 
 ### Fixes
+
 - **Inline formatting** — `*italic*` no longer matches inside `**bold**`, longer matches preferred at same position.
 - **Code highlighting** — Nested hljs `<span>` elements parsed correctly (DOM walker replaces regex).
 - **HTML cleanup corrupting code blocks** — Parser's HTML-stripping regexes now skip fenced code blocks. Fixes missing paragraphs (bare `<` causing cross-line deletion) and broken Mermaid diagrams (HTML labels like `<b>`, `<br/>` being stripped).
@@ -68,6 +86,7 @@
 ## 1.1.1
 
 ### Fixes
+
 - **Self-hosted fonts** — All fonts now bundled locally (~1.9MB). Fixes CORS 403 error in page view mode on GitHub Pages. No more Google Fonts CDN dependency.
 
 ---
@@ -75,6 +94,7 @@
 ## 1.1.0
 
 ### New features
+
 - **Custom templates** — Create your own themes with full control over fonts, colors, spacing, and more. Import styles from .docx files.
 - **Scroll sync** — Editor and preview stay in sync. Auto-follow cursor or jump on demand.
 - **Page view** — Preview as paginated A4 pages matching final export.
@@ -82,6 +102,7 @@
 - **Quality score** — Real-time readability metrics (Flesch-Kincaid, passive voice, heading structure).
 
 ### Improvements
+
 - **Custom notifications** — Elegant toast notifications and confirm modals replace browser alerts. Non-blocking, dark-themed, keyboard accessible.
 
 ---

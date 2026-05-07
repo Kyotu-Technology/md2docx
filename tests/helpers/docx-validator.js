@@ -170,6 +170,26 @@ export class DocxValidator {
     });
   }
 
+  getNumberingStarts(numbering) {
+    if (!numbering) return [];
+    const root = numbering["w:numbering"];
+    if (!root) return [];
+    const abstractNums = root["w:abstractNum"];
+    const list = Array.isArray(abstractNums) ? abstractNums : abstractNums ? [abstractNums] : [];
+    const results = [];
+    for (const abs of list) {
+      const lvls = abs["w:lvl"];
+      const lvlList = Array.isArray(lvls) ? lvls : lvls ? [lvls] : [];
+      const levels = lvlList.map((lvl) => ({
+        ilvl: lvl["@_w:ilvl"],
+        start: lvl["w:start"]?.["@_w:val"],
+        format: lvl["w:numFmt"]?.["@_w:val"],
+      }));
+      results.push({ abstractNumId: abs["@_w:abstractNumId"], levels });
+    }
+    return results;
+  }
+
   getImageExtents(doc) {
     const paragraphs = this.getParagraphs(doc);
     const extents = [];

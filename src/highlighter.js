@@ -62,7 +62,7 @@ export function highlightCodeTokens(code, language) {
   try {
     highlighted =
       language && window.hljs.getLanguage(language)
-        ? window.hljs.highlight(code, { language })
+        ? window.hljs.highlight(code, { language, ignoreIllegals: true })
         : window.hljs.highlightAuto(code);
   } catch {
     return code.split("\n").map((line) => [{ text: line, tokenType: "default" }]);

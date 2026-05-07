@@ -15,7 +15,6 @@ const server = Bun.serve({
     const file = Bun.file(filePath);
 
     if (await file.exists()) {
-      // Inject version into HTML during development
       if (filePath.endsWith(".html")) {
         let html = await file.text();
         html = html.replace("__APP_VERSION__", devVersion);
@@ -53,5 +52,13 @@ function getContentType(path) {
   };
   return types[ext] || "application/octet-stream";
 }
+
+function shutdown() {
+  server.stop();
+  process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 console.log(`Dev server: http://localhost:${server.port} (${devVersion})`);

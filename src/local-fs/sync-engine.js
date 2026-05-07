@@ -21,6 +21,7 @@ let fileMap = new Map();
 let folderName = "";
 let stateListeners = [];
 let onDocumentsChanged = null;
+let onDocumentsMerged = null;
 let onExternalFileChange = null;
 let broadcastChannel = null;
 
@@ -114,8 +115,9 @@ export function buildDocumentsFromMap(contents, mainPath) {
 
 let onUnmountCallback = null;
 
-export function setCallbacks({ onDocuments, onExternalChange, onUnmount }) {
+export function setCallbacks({ onDocuments, onMerge, onExternalChange, onUnmount }) {
   onDocumentsChanged = onDocuments;
+  onDocumentsMerged = onMerge;
   onExternalFileChange = onExternalChange;
   onUnmountCallback = onUnmount;
 }
@@ -175,6 +177,13 @@ async function completeMount(handle) {
     await persistHandle(handle);
 
     const contents = await readAllContents(fileMap);
+    for (const [path, content] of contents) {
+      const entry = fileMap.get(path);
+      if (entry) {
+        entry.lastSyncedContent = content;
+        entry.lastSyncedAt = entry.lastModified;
+      }
+    }
     const paths = [...contents.keys()];
     const mainPath = pickMainDoc(paths);
     if (mainPath) setMainDocPath(mainPath);
@@ -224,11 +233,15 @@ export async function saveToLocalFs(name, content) {
   const entry = fileMap.get(name);
   if (!entry) return;
 
+  if (entry.lastSyncedContent === content) return;
+
   markAsOurWrite(name);
   try {
     await writeFileContent(entry.handle, content);
     const file = await entry.handle.getFile();
     entry.lastModified = file.lastModified;
+    entry.lastSyncedContent = content;
+    entry.lastSyncedAt = file.lastModified;
   } catch (err) {
     handlePermissionError(err);
   }
@@ -242,7 +255,13 @@ export async function createInLocalFs(name) {
     markAsOurWrite(name);
     await writeFileContent(handle, "");
     const file = await handle.getFile();
-    fileMap.set(name, { handle, lastModified: file.lastModified, size: 0 });
+    fileMap.set(name, {
+      handle,
+      lastModified: file.lastModified,
+      size: 0,
+      lastSyncedContent: "",
+      lastSyncedAt: file.lastModified,
+    });
     return fileToDocument(name, "", false);
   } catch (err) {
     handlePermissionError(err);
@@ -253,6 +272,7 @@ export async function createInLocalFs(name) {
 export async function deleteFromLocalFs(name) {
   if (!dirHandle || state !== "watching") return false;
 
+  markAsOurWrite(name);
   try {
     await deleteFile(dirHandle, name);
     fileMap.delete(name);
@@ -266,11 +286,20 @@ export async function deleteFromLocalFs(name) {
 export async function renameInLocalFs(oldName, newName) {
   if (!dirHandle || state !== "watching") return false;
 
+  const oldEntry = fileMap.get(oldName);
+  markAsOurWrite(oldName);
+  markAsOurWrite(newName);
   try {
     const newHandle = await renameFile(dirHandle, oldName, newName);
     fileMap.delete(oldName);
     const file = await newHandle.getFile();
-    fileMap.set(newName, { handle: newHandle, lastModified: file.lastModified, size: file.size });
+    fileMap.set(newName, {
+      handle: newHandle,
+      lastModified: file.lastModified,
+      size: file.size,
+      lastSyncedContent: oldEntry?.lastSyncedContent ?? "",
+      lastSyncedAt: file.lastModified,
+    });
     return true;
   } catch (err) {
     handlePermissionError(err);
@@ -289,10 +318,21 @@ export async function rescanFolder() {
     const { fileMap: scanned } = await scanDirectory(dirHandle);
     fileMap = scanned;
     const contents = await readAllContents(fileMap);
+    for (const [path, content] of contents) {
+      const entry = fileMap.get(path);
+      if (entry) {
+        entry.lastSyncedContent = content;
+        entry.lastSyncedAt = entry.lastModified;
+      }
+    }
     const paths = [...contents.keys()];
     const mainPath = pickMainDoc(paths);
     const docs = buildDocumentsFromMap(contents, mainPath);
-    if (onDocumentsChanged) onDocumentsChanged(docs);
+    if (onDocumentsMerged) {
+      onDocumentsMerged(docs);
+    } else if (onDocumentsChanged) {
+      onDocumentsChanged(docs);
+    }
     return docs;
   } catch (err) {
     handlePermissionError(err);
@@ -338,6 +378,8 @@ async function processChange(change) {
       const file = await entry.handle.getFile();
       entry.lastModified = file.lastModified;
       entry.size = file.size;
+      entry.lastSyncedContent = content;
+      entry.lastSyncedAt = file.lastModified;
       return { type: "modified", path: change.path, content };
     } catch {
       return null;
@@ -354,7 +396,13 @@ async function processChange(change) {
       const handle = await current.getFileHandle(parts[parts.length - 1]);
       const file = await handle.getFile();
       const content = await file.text();
-      fileMap.set(change.path, { handle, lastModified: file.lastModified, size: file.size });
+      fileMap.set(change.path, {
+        handle,
+        lastModified: file.lastModified,
+        size: file.size,
+        lastSyncedContent: content,
+        lastSyncedAt: file.lastModified,
+      });
       return { type: "created", path: change.path, content };
     } catch {
       return null;

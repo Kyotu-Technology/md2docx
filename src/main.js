@@ -10,7 +10,7 @@ import { openTemplateManager } from "./template-manager/index.js";
 import { renderPreview, generateHTMLPreview } from "./preview-renderer.js";
 import { loadLogoPng } from "./logo.js";
 import { escapeHtml } from "./utils.js";
-import { toast, conflictDialog } from "./notifications/index.js";
+import { toast, conflictDialog, confirm } from "./notifications/index.js";
 import { generateFontFaceCSS, getFontName } from "./fonts.js";
 import { initFormattingToolbar, hasTextSelection, applyLink } from "./formatting-toolbar.js";
 import { initDiagramActions } from "./diagram-actions.js";
@@ -55,11 +55,11 @@ date: "January 2025"
 
 # Introduction
 
-This document demonstrates the capabilities of **MD2DOCX** converter built by [KYOTU Technology](https://kyotu.tech). It supports various Markdown elements and generates professional Word documents.
+This document demonstrates the capabilities of **MD2DOCX** converter built by [KYOTU Technology](https://kyotutechnology.com). It supports various Markdown elements and generates professional Word documents.
 
 ## Text Formatting
 
-Text can be **bold**, *italic* or \`inline code\`. You can also combine them: ***bold and italic***. Links work too: [visit our website](https://kyotu.tech).
+Text can be **bold**, *italic* or \`inline code\`. You can also combine them: ***bold and italic***. Links work too: [visit our website](https://kyotutechnology.com).
 
 ## Lists
 
@@ -168,6 +168,24 @@ let customLogoDataUrl = null;
 let previewMode = "continuous";
 let currentDocId = null;
 let allDocuments = [];
+let pendingWriteCount = 0;
+
+function trackedSaveToLocalFs(name, content) {
+  pendingWriteCount++;
+  return saveToLocalFs(name, content).finally(() => {
+    pendingWriteCount--;
+  });
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (!isLocalFsMode()) return;
+  const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+  const isDirty = currentDoc && currentDoc.content !== markdownInput.value;
+  if (pendingWriteCount > 0 || isDirty) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
 
 const exportOptions = {
   showTitlePage: true,
@@ -249,7 +267,7 @@ resetLogo.addEventListener("click", () => {
   exportOptions.customLogo = null;
   logoInput.value = "";
   const themeId = themeSelect.value;
-  if (themeId === "kyotu") {
+  if (themeId === "kyotu" || themeId === "kyotu-mini") {
     logoFileName.textContent = "KYOTU (default)";
   } else if (themeId.startsWith("user-")) {
     logoFileName.textContent = "Custom template";
@@ -263,7 +281,7 @@ themeSelect.addEventListener("change", () => {
   updatePreview();
   if (!customLogoDataUrl) {
     const themeId = themeSelect.value;
-    if (themeId === "kyotu") {
+    if (themeId === "kyotu" || themeId === "kyotu-mini") {
       logoFileName.textContent = "KYOTU (default)";
     } else if (themeId.startsWith("user-")) {
       logoFileName.textContent = "Custom template";
@@ -419,6 +437,7 @@ async function initThemeSelect() {
 async function initDocuments() {
   setLocalFsCallbacks({
     onDocuments: loadDocuments,
+    onMerge: mergeDocsFromDisk,
     onExternalChange: handleExternalFileChange,
     onUnmount: handleUnmount,
   });
@@ -453,16 +472,6 @@ async function initDocuments() {
 function loadDocuments(docs) {
   allDocuments = docs;
 
-  if (currentDocId) {
-    const stillThere = allDocuments.find((d) => d.id === currentDocId);
-    if (stillThere) {
-      stillThere.content = markdownInput.value;
-      updateCurrentDocLabel();
-      refreshFileList(allDocuments, currentDocId);
-      return;
-    }
-  }
-
   const mainDoc = allDocuments.find((d) => d.isMain) || allDocuments[0];
   if (mainDoc) {
     currentDocId = mainDoc.id;
@@ -474,6 +483,50 @@ function loadDocuments(docs) {
   updateCurrentDocLabel();
   refreshFileList(allDocuments, currentDocId);
   updatePreview({ skipSave: isLocalFsMode() });
+}
+
+function mergeDocsFromDisk(freshDocs) {
+  const freshById = new Map(freshDocs.map((d) => [d.id, d]));
+  const existingSnapshot = [...allDocuments];
+
+  for (const existingDoc of existingSnapshot) {
+    if (!freshById.has(existingDoc.id)) {
+      handleExternalFileChange({ type: "deleted", path: existingDoc.name });
+    }
+  }
+
+  const existingById = new Map(allDocuments.map((d) => [d.id, d]));
+  for (const freshDoc of freshDocs) {
+    const existing = existingById.get(freshDoc.id);
+    if (!existing) {
+      handleExternalFileChange({
+        type: "created",
+        path: freshDoc.name,
+        content: freshDoc.content,
+      });
+      continue;
+    }
+    if (existing.content === freshDoc.content) continue;
+
+    if (existing.id === currentDocId) {
+      handleExternalFileChange({
+        type: "modified",
+        path: freshDoc.name,
+        content: freshDoc.content,
+      });
+    } else {
+      existing.content = freshDoc.content;
+    }
+  }
+
+  const newMainFresh = freshDocs.find((d) => d.isMain);
+  if (newMainFresh) {
+    for (const doc of allDocuments) {
+      doc.isMain = doc.id === newMainFresh.id;
+    }
+  }
+
+  refreshFileList(allDocuments, currentDocId);
 }
 
 async function handleUnmount() {
@@ -493,6 +546,7 @@ function handleExternalFileChange(change) {
     if (doc.id === currentDocId) {
       const currentContent = markdownInput.value;
       if (currentContent !== doc.content && currentContent !== change.content) {
+        const externalSnapshot = change.content;
         const t = toast.warning(`External change in "${change.path}"`, 0);
         toast.withActions(t, [
           {
@@ -500,8 +554,9 @@ function handleExternalFileChange(change) {
             className:
               "px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors",
             onClick: () => {
-              doc.content = change.content;
-              markdownInput.value = change.content;
+              if (doc.id !== currentDocId) return;
+              doc.content = externalSnapshot;
+              markdownInput.value = externalSnapshot;
               updatePreview({ skipSave: true });
             },
           },
@@ -524,6 +579,9 @@ function handleExternalFileChange(change) {
     const doc = allDocuments.find((d) => d.name === change.path);
     if (!doc) return;
     if (doc.id === currentDocId) {
+      const recreateSnapshot = doc.id === currentDocId ? markdownInput.value : doc.content;
+      const recreatePath = change.path;
+      const originalDocId = doc.id;
       const t = toast.warning(`"${change.path}" was deleted externally`, 0);
       toast.withActions(t, [
         {
@@ -531,13 +589,17 @@ function handleExternalFileChange(change) {
           className:
             "px-2 py-1 text-xs bg-kyotu-orange hover:bg-kyotu-orange-light text-white rounded transition-colors",
           onClick: async () => {
-            const newDoc = await createInLocalFs(change.path);
+            const newDoc = await createInLocalFs(recreatePath);
             if (newDoc) {
-              newDoc.content = markdownInput.value;
-              await saveToLocalFs(newDoc.name, newDoc.content);
-              allDocuments = allDocuments.filter((d) => d.id !== doc.id);
+              newDoc.content = recreateSnapshot;
+              await trackedSaveToLocalFs(newDoc.name, newDoc.content);
+              allDocuments = allDocuments.filter((d) => d.id !== originalDocId);
               allDocuments.push(newDoc);
-              currentDocId = newDoc.id;
+              if (currentDocId === originalDocId) {
+                currentDocId = newDoc.id;
+                markdownInput.value = recreateSnapshot;
+                updateCurrentDocLabel();
+              }
               refreshFileList(allDocuments, currentDocId);
             }
           },
@@ -584,7 +646,7 @@ async function switchDocument(docId) {
   if (currentDoc) {
     currentDoc.content = markdownInput.value;
     if (isLocalFsMode()) {
-      await saveToLocalFs(currentDoc.name, currentDoc.content);
+      await trackedSaveToLocalFs(currentDoc.name, currentDoc.content);
     } else {
       await saveDocument(currentDoc);
     }
@@ -792,7 +854,9 @@ async function updatePreview({ skipSave = false } = {}) {
     currentDoc.content = md;
     if (!skipSave) {
       if (isLocalFsMode()) {
-        saveToLocalFs(currentDoc.name, md).catch(() => toast.error("Failed to save to disk"));
+        trackedSaveToLocalFs(currentDoc.name, md).catch(() =>
+          toast.error("Failed to save to disk")
+        );
       } else {
         saveDocument(currentDoc).catch(() => toast.error("Failed to save document"));
       }
@@ -1163,7 +1227,7 @@ async function handleExplorerDrop(files) {
   if (currentDoc) {
     currentDoc.content = markdownInput.value;
     if (isLocalFsMode()) {
-      await saveToLocalFs(currentDoc.name, currentDoc.content);
+      await trackedSaveToLocalFs(currentDoc.name, currentDoc.content);
     } else {
       await saveDocument(currentDoc);
     }
@@ -1187,7 +1251,7 @@ async function handleExplorerDrop(files) {
       if (action === "replace") {
         existingDoc.content = content;
         if (isLocalFsMode()) {
-          await saveToLocalFs(existingDoc.name, content);
+          await trackedSaveToLocalFs(existingDoc.name, content);
         } else {
           await saveDocument(existingDoc);
           allDocuments = await getAllDocuments();
@@ -1200,7 +1264,7 @@ async function handleExplorerDrop(files) {
           const doc = await createInLocalFs(newName);
           if (doc) {
             doc.content = content;
-            await saveToLocalFs(newName, content);
+            await trackedSaveToLocalFs(newName, content);
             allDocuments.push(doc);
             lastDocId = doc.id;
           }
@@ -1218,7 +1282,7 @@ async function handleExplorerDrop(files) {
         const doc = await createInLocalFs(file.name);
         if (doc) {
           doc.content = content;
-          await saveToLocalFs(file.name, content);
+          await trackedSaveToLocalFs(file.name, content);
           allDocuments.push(doc);
           lastDocId = doc.id;
         }
@@ -1243,36 +1307,63 @@ async function handleExplorerDrop(files) {
   if (parts.length > 0) toast.success(`Files: ${parts.join(", ")}`);
 }
 
-function loadFile(file) {
+async function loadFile(file) {
   if (
-    file &&
-    (file.name.endsWith(".md") || file.name.endsWith(".txt") || file.type === "text/plain")
+    !file ||
+    !(file.name.endsWith(".md") || file.name.endsWith(".txt") || file.type === "text/plain")
   ) {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const content = e.target.result;
-      markdownInput.value = content;
-
-      if (isExplorerOpen()) {
-        const currentDoc = allDocuments.find((d) => d.id === currentDocId);
-        if (currentDoc) {
-          currentDoc.content = content;
-          if (isLocalFsMode()) {
-            await saveToLocalFs(currentDoc.name, content);
-          } else {
-            await saveDocument(currentDoc);
-          }
-        }
-        toast.success(`Content of "${currentDoc?.name || "document"}" updated`);
-      }
-
-      updatePreview();
-    };
-    reader.readAsText(file);
+    return;
   }
+
+  if (isLocalFsMode()) {
+    const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+    if (currentDoc) {
+      const ok = await confirm({
+        title: "Overwrite local file?",
+        message: `This will replace the content of "${currentDoc.name}" on disk with content of "${file.name}".`,
+        confirmText: "Overwrite",
+        confirmStyle: "danger",
+      });
+      if (!ok) return;
+    }
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const content = e.target.result;
+    markdownInput.value = content;
+
+    if (isExplorerOpen()) {
+      const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+      if (currentDoc) {
+        currentDoc.content = content;
+        if (isLocalFsMode()) {
+          await trackedSaveToLocalFs(currentDoc.name, content);
+        } else {
+          await saveDocument(currentDoc);
+        }
+      }
+      toast.success(`Content of "${currentDoc?.name || "document"}" updated`);
+    }
+
+    updatePreview();
+  };
+  reader.readAsText(file);
 }
 
-loadExample.addEventListener("click", () => {
+loadExample.addEventListener("click", async () => {
+  if (isLocalFsMode()) {
+    const currentDoc = allDocuments.find((d) => d.id === currentDocId);
+    if (currentDoc) {
+      const ok = await confirm({
+        title: "Replace with example?",
+        message: `This will replace the content of "${currentDoc.name}" on disk with example content.`,
+        confirmText: "Replace",
+        confirmStyle: "danger",
+      });
+      if (!ok) return;
+    }
+  }
   markdownInput.value = EXAMPLE_MD;
   const currentDoc = allDocuments.find((d) => d.id === currentDocId);
   if (currentDoc) currentDoc.content = EXAMPLE_MD;

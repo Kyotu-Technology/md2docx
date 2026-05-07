@@ -154,31 +154,77 @@ function elementToHTML(el, theme, interactive = false) {
 
   switch (el.type) {
     case "h1":
-      return `<h1${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h1>`;
+      return `<h1${lineAttr} style="color:#${c.h1Text || c.primary};">${escapeHtml(el.content)}</h1>`;
     case "h2":
-      return `<h2${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h2>`;
+      return `<h2${lineAttr} style="color:#${c.h2Text || c.primary};">${escapeHtml(el.content)}</h2>`;
     case "h3":
-      return `<h3${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h3>`;
+      return `<h3${lineAttr} style="color:#${c.h3Text || c.primary};">${escapeHtml(el.content)}</h3>`;
     case "h4":
-      return `<h4${lineAttr} style="color:#${c.primary};">${escapeHtml(el.content)}</h4>`;
+      return `<h4${lineAttr} style="color:#${c.h4Text || c.primary};">${escapeHtml(el.content)}</h4>`;
     case "paragraph":
       return `<p${lineAttr}>${formatInlineHTML(escapeHtml(el.content), theme)}</p>`;
+    case "blockquote":
+      return `<blockquote${lineAttr}>${formatInlineHTML(escapeHtml(el.content), theme)}</blockquote>`;
     case "bulletlist": {
       let html = "<ul>";
       el.items.forEach((item, idx) => {
-        const itemLine = el.line !== undefined ? el.line + idx : undefined;
+        const text = typeof item === "string" ? item : item.text;
+        const srcLine = typeof item === "object" ? item.srcLine : undefined;
+        const itemLine =
+          srcLine !== undefined ? srcLine : el.line !== undefined ? el.line + idx : undefined;
         const itemAttr = itemLine !== undefined ? ` data-line="${itemLine}"` : "";
-        html += `<li${itemAttr}>${formatInlineHTML(escapeHtml(item), theme)}</li>`;
+        html += `<li${itemAttr}>${formatInlineHTML(escapeHtml(text), theme)}</li>`;
       });
       return html + "</ul>";
     }
     case "numlist": {
-      let html = "<ol>";
-      el.items.forEach((item, idx) => {
-        const itemLine = el.line !== undefined ? el.line + idx : undefined;
+      const startAttr = el.start ? ` start="${el.start}"` : "";
+      const outerClass = el.marker === ")" ? ' class="paren-list"' : "";
+      const outerStyle =
+        el.marker === ")" && el.start && el.start !== 1
+          ? ` style="--paren-start: ${el.start - 1}"`
+          : "";
+      let html = `<ol${outerClass}${startAttr}${outerStyle}>`;
+      let i = 0;
+      while (i < el.items.length) {
+        const item = el.items[i];
+        if (item.level !== 0) {
+          i++;
+          continue;
+        }
+        const itemLine =
+          item.srcLine !== undefined
+            ? item.srcLine
+            : el.line !== undefined
+              ? el.line + i
+              : undefined;
         const itemAttr = itemLine !== undefined ? ` data-line="${itemLine}"` : "";
-        html += `<li${itemAttr}>${formatInlineHTML(escapeHtml(item), theme)}</li>`;
-      });
+        html += `<li${itemAttr}>${formatInlineHTML(escapeHtml(item.text), theme)}`;
+        const subs = [];
+        let subMarker = null;
+        while (i + 1 < el.items.length && el.items[i + 1].level === 1) {
+          i++;
+          subs.push({ item: el.items[i], idx: i });
+          if (subMarker === null) subMarker = el.items[i].marker;
+        }
+        if (subs.length) {
+          const innerClass = subMarker === ")" ? ' class="paren-list"' : "";
+          html += `<ol${innerClass}>`;
+          for (const s of subs) {
+            const subLine =
+              s.item.srcLine !== undefined
+                ? s.item.srcLine
+                : el.line !== undefined
+                  ? el.line + s.idx
+                  : undefined;
+            const subAttr = subLine !== undefined ? ` data-line="${subLine}"` : "";
+            html += `<li${subAttr}>${formatInlineHTML(escapeHtml(s.item.text), theme)}</li>`;
+          }
+          html += "</ol>";
+        }
+        html += "</li>";
+        i++;
+      }
       return html + "</ol>";
     }
     case "checklist": {

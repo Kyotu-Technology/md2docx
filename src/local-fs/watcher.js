@@ -13,6 +13,7 @@ let pollTimer = null;
 let rescanTimer = null;
 let active = false;
 let currentDirHandle = null;
+let currentFileMap = null;
 let currentOnChange = null;
 let pollFn = null;
 let currentPollIntervalMs = 0;
@@ -35,6 +36,7 @@ export function startWatching(dirHandle, fileMap, onChange) {
   stopWatching();
   active = true;
   currentDirHandle = dirHandle;
+  currentFileMap = fileMap;
   currentOnChange = onChange;
 
   if (isFileSystemObserverSupported()) {
@@ -66,24 +68,54 @@ export function stopWatching() {
 
   document.removeEventListener("visibilitychange", handleVisibilityChange);
   currentDirHandle = null;
+  currentFileMap = null;
   currentOnChange = null;
   pollFn = null;
   currentPollIntervalMs = 0;
 }
 
+async function checkAllForChanges() {
+  if (!active || !currentFileMap || !currentOnChange) return;
+
+  const entries = [...currentFileMap.entries()];
+  const results = await Promise.all(
+    entries.map(([path, entry]) =>
+      entry.handle.getFile().then(
+        (file) => ({ path, entry, file, ok: true }),
+        () => ({ path, entry, ok: false })
+      )
+    )
+  );
+
+  const changes = [];
+  for (const { path, entry, file, ok } of results) {
+    if (!ok) {
+      changes.push({ type: "deleted", path });
+      continue;
+    }
+    if (file.lastModified !== entry.lastModified && !isOwnWrite(path, file.lastModified)) {
+      changes.push({ type: "modified", path });
+    }
+  }
+
+  if (changes.length > 0) currentOnChange(changes);
+}
+
 function handleVisibilityChange() {
   if (!active || !currentDirHandle || !currentOnChange) return;
-  if (!pollFn || !pollTimer) return;
 
-  const newInterval = document.visibilityState === "visible" ? POLL_FOCUSED_MS : POLL_BACKGROUND_MS;
-  if (newInterval !== currentPollIntervalMs) {
-    clearInterval(pollTimer);
-    currentPollIntervalMs = newInterval;
-    pollTimer = setInterval(pollFn, newInterval);
+  if (pollFn && pollTimer) {
+    const newInterval =
+      document.visibilityState === "visible" ? POLL_FOCUSED_MS : POLL_BACKGROUND_MS;
+    if (newInterval !== currentPollIntervalMs) {
+      clearInterval(pollTimer);
+      currentPollIntervalMs = newInterval;
+      pollTimer = setInterval(pollFn, newInterval);
+    }
   }
 
   if (document.visibilityState === "visible") {
-    currentOnChange([{ type: "rescan" }]);
+    checkAllForChanges();
   }
 }
 

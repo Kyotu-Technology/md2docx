@@ -28,6 +28,55 @@ Feature: DOCX export quality
     And the DOCX text content should contain "Subsection"
     And the DOCX text content should contain "Some paragraph text."
 
+  Scenario: DOCX preserves custom start number for numbered list
+    Given the editor contains:
+      """
+      ---
+      title: "Numbering Doc"
+      ---
+
+      5. Item five
+      6. Item six
+      7. Item seven
+      """
+    When I export as "docx"
+    Then the DOCX numbering should declare a list starting at 5
+
+  Scenario: DOCX preserves nested numbered list level
+    Given the editor contains:
+      """
+      ---
+      title: "Nested Doc"
+      ---
+
+      1. Outer one
+         1. Inner A
+         2. Inner B
+      2. Outer two
+      """
+    When I export as "docx"
+    Then the DOCX numbering should declare a second level
+
+  Scenario: DOCX nested list with blank line preserves level
+    Given the editor contains:
+      """
+      ---
+      title: "Loose Nested Doc"
+      ---
+
+      1. Outer one
+
+         1) Inner A
+         2) Inner B
+
+      2. Outer two
+      """
+    When I export as "docx"
+    Then the DOCX numbering should declare a second level
+    And the DOCX text content should contain "Outer one"
+    And the DOCX text content should contain "Inner A"
+    And the DOCX text content should contain "Outer two"
+
   Scenario: DOCX contains bullet list items
     Given the editor contains:
       """

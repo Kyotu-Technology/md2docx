@@ -78,30 +78,54 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
       font-size: ${h1Size}px !important;
       font-weight: 700;
       margin: ${h1Before}px 0 ${h1After}px !important;
+      ${c.h1Bar ? `border-left: 3px solid #${c.h1Bar} !important;` : ""}
+      ${c.h1Bg ? `background-color: #${c.h1Bg} !important;` : ""}
+      ${c.h1Bar || c.h1Bg ? `padding: 5px 8px !important;` : ""}
+      ${c.h1Text ? `color: #${c.h1Text} !important;` : ""}
+      ${theme.headings?.h1Caps ? `text-transform: uppercase; letter-spacing: 0.02em;` : ""}
     }
     :is(${selectors}) h2 {
       font-family: ${headingFont} !important;
       font-size: ${h2Size}px !important;
       font-weight: 600;
       margin: ${h2Before}px 0 ${h2After}px !important;
+      ${c.h2Bar ? `border-left: 2px solid #${c.h2Bar} !important;` : ""}
+      ${c.h2Bg ? `background-color: #${c.h2Bg} !important;` : ""}
+      ${c.h2Bar || c.h2Bg ? `padding: 3px 6px !important;` : ""}
+      ${c.h2Text ? `color: #${c.h2Text} !important;` : ""}
+      ${theme.headings?.h2Caps ? `text-transform: uppercase; letter-spacing: 0.02em;` : ""}
     }
     :is(${selectors}) h3 {
       font-family: ${headingFont} !important;
       font-size: ${h3Size}px !important;
       font-weight: 600;
       margin: ${h3Before}px 0 ${h3After}px !important;
+      ${c.h3Text ? `color: #${c.h3Text} !important;` : ""}
     }
     :is(${selectors}) h4 {
       font-family: ${headingFont} !important;
       font-size: ${h4Size}px !important;
       font-weight: 600;
       margin: ${h4Before}px 0 ${h4After}px !important;
+      ${c.h4Text ? `color: #${c.h4Text} !important;` : ""}
     }
     :is(${selectors}) p {
       font-family: ${bodyFont} !important;
       font-size: ${bodySize}px !important;
       margin: 0.5rem 0 ${paraAfter}px !important;
       line-height: 1.7;
+      ${theme.body?.alignment === "justify" ? `text-align: justify;` : ""}
+    }
+    :is(${selectors}) blockquote {
+      font-family: ${bodyFont} !important;
+      font-size: ${bodySize}px !important;
+      margin: 0.5rem 0 ${paraAfter}px !important;
+      line-height: 1.7;
+      ${c.blockquoteBar ? `border-left: 4px solid #${c.blockquoteBar} !important;` : "border-left: 4px solid #cbd5e0;"}
+      ${c.blockquoteBg ? `background-color: #${c.blockquoteBg} !important;` : ""}
+      padding: 6px 10px !important;
+      ${c.blockquoteText ? `color: #${c.blockquoteText} !important;` : ""}
+      ${theme.body?.alignment === "justify" ? `text-align: justify;` : ""}
     }
     :is(${selectors}) ul, :is(${selectors}) ol {
       font-family: ${bodyFont} !important;
@@ -115,6 +139,22 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
     :is(${selectors}) ol {
       list-style-type: decimal !important;
     }
+    :is(${selectors}) ol.paren-list {
+      list-style: none !important;
+      counter-reset: paren-counter var(--paren-start, 0) !important;
+      padding-left: 2rem !important;
+    }
+    :is(${selectors}) ol.paren-list > li {
+      counter-increment: paren-counter !important;
+      position: relative !important;
+    }
+    :is(${selectors}) ol.paren-list > li::before {
+      content: counter(paren-counter) ") " !important;
+      position: absolute !important;
+      left: -2rem !important;
+      width: 1.75rem !important;
+      text-align: right !important;
+    }
     :is(${selectors}) li {
       margin: 0.25rem 0 !important;
     }
@@ -126,7 +166,7 @@ export function generatePreviewStyles(theme, selectors = "#preview, #tePreview")
       margin: 0.75rem 0 !important;
     }
     :is(${selectors}) th, :is(${selectors}) td {
-      padding: 0.625rem 0.75rem !important;
+      padding: 0.35rem 0.5rem !important;
       text-align: left !important;
       border-width: 1px !important;
       border-style: solid !important;

@@ -3,75 +3,19 @@ import { test } from "./common.steps.js";
 import { When, Then } from "./common.steps.js";
 import { DocxValidator } from "../helpers/docx-validator.js";
 import { HtmlValidator } from "../helpers/html-validator.js";
+import { installDownloadInterceptor } from "../helpers/download-interceptor.js";
 
 const docxValidator = new DocxValidator();
 const htmlValidator = new HtmlValidator();
 
-// Shared state per scenario
 let lastDownloadBuffer = null;
 let lastDownloadFilename = null;
 
-// CDN library requirements per format
 const CDN_LIBS = {
   docx: "docx",
   pdf: "pdfMake",
-  html: null, // no CDN dependency
+  html: null,
 };
-
-/**
- * Install a blob download interceptor on the page.
- * In --single-process Chromium mode, Playwright download events don't fire
- * for blob URLs, so we capture blobs directly in the page context.
- */
-async function installDownloadInterceptor(page) {
-  await page.evaluate(() => {
-    if (window.__downloadInterceptorInstalled) return;
-    window.__downloadInterceptorInstalled = true;
-    window.__downloadCaptures = [];
-    window.__blobMap = new Map();
-    window.__pendingReads = new Set();
-
-    const origCreateObjectURL = URL.createObjectURL.bind(URL);
-    const origRevokeObjectURL = URL.revokeObjectURL.bind(URL);
-    window.__origRevokeObjectURL = origRevokeObjectURL;
-
-    URL.createObjectURL = function (blob) {
-      const url = origCreateObjectURL(blob);
-      window.__blobMap.set(url, blob);
-      return url;
-    };
-
-    URL.revokeObjectURL = function (url) {
-      if (window.__pendingReads.has(url)) return;
-      window.__blobMap.delete(url);
-      origRevokeObjectURL(url);
-    };
-
-    const origClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function () {
-      if (this.download && this.href && this.href.startsWith("blob:")) {
-        const blob = window.__blobMap.get(this.href);
-        if (blob) {
-          const blobUrl = this.href;
-          window.__pendingReads.add(blobUrl);
-          const reader = new FileReader();
-          reader.onload = () => {
-            window.__downloadCaptures.push({
-              filename: this.download,
-              data: Array.from(new Uint8Array(reader.result)),
-            });
-            window.__pendingReads.delete(blobUrl);
-            window.__blobMap.delete(blobUrl);
-            origRevokeObjectURL(blobUrl);
-          };
-          reader.readAsArrayBuffer(blob);
-        }
-        return;
-      }
-      return origClick.call(this);
-    };
-  });
-}
 
 When("I export as {string}", async ({ page }, format) => {
   // Check if the required CDN library is available
@@ -136,6 +80,22 @@ Then("the DOCX should contain numbered paragraphs", async ({}) => {
   const paragraphs = docxValidator.getParagraphs(doc);
   const numbered = paragraphs.filter((p) => docxValidator.hasNumbering(p));
   expect(numbered.length).toBeGreaterThan(0);
+});
+
+Then("the DOCX numbering should declare a list starting at {int}", async ({}, expectedStart) => {
+  const { numbering } = await docxValidator.parse(lastDownloadBuffer);
+  const starts = docxValidator.getNumberingStarts(numbering);
+  const matched = starts.some((entry) =>
+    entry.levels.some((lvl) => String(lvl.start) === String(expectedStart))
+  );
+  expect(matched).toBe(true);
+});
+
+Then("the DOCX numbering should declare a second level", async ({}) => {
+  const { numbering } = await docxValidator.parse(lastDownloadBuffer);
+  const starts = docxValidator.getNumberingStarts(numbering);
+  const hasLevel1 = starts.some((entry) => entry.levels.some((lvl) => lvl.ilvl === "1"));
+  expect(hasLevel1).toBe(true);
 });
 
 Then("the DOCX HTML should contain a {string} tag", async ({}, tag) => {
